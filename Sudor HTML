@@ -1,0 +1,1974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nnom's Sudor — Game Viewer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   RESET & VARIABLES
+═══════════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #080b07;
+  --bg2:      #0d120a;
+  --bg3:      #111608;
+  --border:   #1e2812;
+  --border2:  #2a3818;
+  --gold:     #c8a840;
+  --gold2:    #e4c060;
+  --green:    #6ab840;
+  --green2:   #88c860;
+  --muted:    #4a5a38;
+  --text:     #c0c8a0;
+  --text2:    #8a9870;
+  --text3:    #5a6848;
+  --danger:   #c05030;
+  --water:    #1a3060;
+  --panel-w:  300px;
+  --hdr-h:    48px;
+}
+html, body { width:100%; height:100%; overflow:hidden; background:var(--bg); color:var(--text); font-family:'Crimson Text',serif; font-size:15px; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════════════════════════ */
+.hdr {
+  position:fixed; top:0; left:0; right:0; height:var(--hdr-h);
+  background:var(--bg2); border-bottom:1px solid var(--border2);
+  display:flex; align-items:center; gap:12px; padding:0 14px; z-index:100;
+}
+.hdr-title {
+  font-family:'Cinzel',serif; font-size:0.82rem; font-weight:700;
+  color:var(--gold2); letter-spacing:0.12em; text-transform:uppercase;
+  white-space:nowrap;
+}
+.hdr-sep { width:1px; height:22px; background:var(--border2); flex-shrink:0; }
+.turn-badge {
+  display:flex; align-items:center; gap:0; position:relative;
+}
+.tb-season-icon { font-size:1.1rem; line-height:1; }
+.tb-text {
+  display:flex; flex-direction:column; align-items:flex-start;
+  margin-left:7px; line-height:1;
+}
+.tb-season {
+  font-family:'Cinzel',serif; font-size:0.78rem; font-weight:700;
+  letter-spacing:0.14em; text-transform:uppercase;
+}
+.tb-year {
+  font-family:'IM Fell English',serif; font-style:italic;
+  font-size:0.68rem; letter-spacing:0.04em; color:var(--text3);
+  margin-top:1px;
+}
+.tb-year span { color:var(--gold2); font-style:normal; font-family:'Cinzel',serif; font-weight:700; font-size:0.75rem; }
+.tb-turn {
+  font-family:'Crimson Text',serif; font-size:0.58rem; color:var(--text3);
+  margin-top:1px; letter-spacing:0.06em;
+}
+.hdr-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+.role-badge {
+  font-family:'Cinzel',serif; font-size:0.6rem; letter-spacing:0.1em;
+  padding:2px 10px; border-radius:2px; text-transform:uppercase;
+}
+.role-badge.admin  { background:#1a1408; border:1px solid #7a6020; color:#c8a840; }
+.role-badge.observer { background:#0a100a; border:1px solid #2a4020; color:#5a8040; }
+.hdr-btn {
+  font-family:'Cinzel',serif; font-size:0.58rem; letter-spacing:0.08em;
+  background:var(--bg3); border:1px solid var(--border2); color:var(--text2);
+  padding:3px 10px; cursor:pointer; transition:all 0.15s; text-transform:uppercase;
+}
+.hdr-btn:hover { border-color:var(--gold); color:var(--gold); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   MAP MODE BAR
+═══════════════════════════════════════════════════════════════════ */
+.modebar {
+  position:fixed; top:var(--hdr-h); left:0; right:0; height:30px;
+  background:var(--bg); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; gap:2px; padding:0 10px; z-index:99;
+  overflow-x:auto;
+}
+.modebar::-webkit-scrollbar { height:2px; }
+.modebar::-webkit-scrollbar-thumb { background:var(--border2); }
+.mode-group { display:flex; gap:1px; background:var(--bg2); border:1px solid var(--border); border-radius:2px; padding:1px; flex-shrink:0; }
+.mmbtn {
+  font-family:'Cinzel',serif; font-size:0.55rem; letter-spacing:0.06em;
+  background:transparent; border:none; color:var(--muted);
+  padding:2px 7px; cursor:pointer; transition:all 0.12s;
+  white-space:nowrap; border-radius:1px;
+}
+.mmbtn:hover { color:var(--text); background:rgba(255,255,255,0.03); }
+.mmbtn.active { color:var(--gold); background:rgba(200,168,64,0.08); font-weight:600; }
+.mode-sep { width:1px; height:14px; background:var(--border); margin:0 4px; flex-shrink:0; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   MAIN LAYOUT
+═══════════════════════════════════════════════════════════════════ */
+.main {
+  position:fixed;
+  top:calc(var(--hdr-h) + 30px);
+  left:0; right:0; bottom:0;
+  display:flex; overflow:hidden;
+}
+.canvas-area { flex:1; position:relative; overflow:hidden; background:#050705; }
+#mapCanvas { position:absolute; top:0; left:0; transform-origin:0 0; image-rendering:pixelated; cursor:crosshair; }
+#selectOverlay { position:absolute; top:0; left:0; transform-origin:0 0; image-rendering:pixelated; pointer-events:none; }
+#labelSvg { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; z-index:3; }
+
+/* zoom HUD */
+.zoom-hud {
+  position:absolute; bottom:10px; right:10px; z-index:10;
+  display:flex; align-items:center; gap:3px;
+  background:rgba(8,11,7,0.85); border:1px solid var(--border2);
+  padding:3px 6px; border-radius:3px;
+}
+.zoom-hud button {
+  background:transparent; border:none; color:var(--text2); cursor:pointer;
+  font-family:'Cinzel',serif; font-size:0.6rem; padding:1px 4px;
+}
+.zoom-hud button:hover { color:var(--gold); }
+#zoomPct { font-family:'Cinzel',serif; font-size:0.6rem; color:var(--text3); min-width:34px; text-align:center; }
+
+/* info bar */
+.info-bar {
+  position:absolute; bottom:0; left:0; right:0; height:20px;
+  background:rgba(8,11,7,0.92); border-top:1px solid var(--border);
+  display:flex; align-items:center; gap:16px; padding:0 10px;
+  font-size:0.58rem; color:var(--text3); z-index:10;
+}
+.info-bar span { color:var(--text2); }
+
+/* right panel */
+.right-panel {
+  width:0; overflow:hidden; background:var(--bg2);
+  border-left:1px solid var(--border2);
+  transition:width 0.22s ease; flex-shrink:0;
+  display:flex; flex-direction:column;
+}
+.right-panel.open { width:var(--panel-w); }
+.rp-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 10px; border-bottom:1px solid var(--border);
+  font-family:'Cinzel',serif; font-size:0.68rem; color:var(--gold);
+  letter-spacing:0.08em; flex-shrink:0;
+}
+.rp-close { cursor:pointer; color:var(--text3); font-size:0.8rem; }
+.rp-close:hover { color:var(--danger); }
+.rp-scroll { flex:1; overflow-y:auto; overflow-x:hidden; padding:8px 10px; }
+.rp-scroll::-webkit-scrollbar { width:4px; }
+.rp-scroll::-webkit-scrollbar-thumb { background:var(--border2); }
+
+/* panel sections */
+.rp-section { margin-bottom:14px; }
+.rp-section-title {
+  font-family:'Cinzel',serif; font-size:0.6rem; color:var(--muted);
+  letter-spacing:0.1em; text-transform:uppercase;
+  border-bottom:1px solid var(--border); padding-bottom:4px; margin-bottom:8px;
+}
+.rp-row { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; font-size:0.75rem; }
+.rp-label { color:var(--text3); }
+.rp-val { color:var(--text); font-family:'Crimson Text',serif; }
+.rp-val.good { color:var(--green2); }
+.rp-val.warn { color:#c8a040; }
+.rp-val.none { color:var(--text3); font-style:italic; }
+.rp-chip {
+  display:inline-block; padding:1px 7px; margin:1px 2px;
+  border-radius:2px; font-size:0.65rem;
+  background:var(--bg3); border:1px solid var(--border2); color:var(--text2);
+}
+.rp-chips { margin-top:3px; }
+.rp-pops-list { font-size:0.7rem; }
+.rp-pop-row { padding:3px 0; border-bottom:1px solid var(--border); color:var(--text); }
+.rp-pop-row .pop-eth { color:var(--gold); }
+.rp-res-row { display:flex; justify-content:space-between; padding:2px 0; font-size:0.7rem; }
+.rp-res-row .res-amt { color:var(--green); font-variant-numeric:tabular-nums; }
+.rp-bar { height:3px; background:var(--border); border-radius:2px; margin-top:2px; margin-bottom:5px; }
+.rp-bar-fill { height:100%; background:var(--green); border-radius:2px; transition:width 0.3s; }
+/* admin-only tint */
+.admin-only { display:none; }
+body.is-admin .admin-only { display:block; }
+body.is-admin .admin-only-flex { display:flex; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   RADIAL MENU
+═══════════════════════════════════════════════════════════════════ */
+#radialMenu {
+  position:absolute; z-index:50;
+  display:none; pointer-events:none;
+}
+#radialMenu.visible { display:block; pointer-events:auto; }
+.radial-backdrop {
+  position:absolute; border-radius:50%;
+  background:rgba(8,12,6,0.88);
+  border:1px solid rgba(200,168,64,0.25);
+  transform:translate(-50%,-50%);
+  backdrop-filter:blur(3px);
+}
+.radial-btn {
+  position:absolute; transform:translate(-50%,-50%);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  width:52px; height:52px; border-radius:50%; cursor:pointer;
+  border:1px solid var(--border2); background:rgba(13,18,10,0.92);
+  color:var(--text2); font-family:'Cinzel',serif; font-size:0.44rem;
+  letter-spacing:0.06em; text-align:center; line-height:1.3;
+  transition:all 0.12s; z-index:51;
+}
+.radial-btn:hover { border-color:var(--gold); color:var(--gold); background:rgba(24,30,16,0.98); transform:translate(-50%,-50%) scale(1.12); }
+.radial-btn .icon { font-size:1.1rem; margin-bottom:2px; }
+.radial-center-label {
+  position:absolute; transform:translate(-50%,-50%);
+  font-family:'Cinzel',serif; font-size:0.5rem; color:var(--muted);
+  text-align:center; pointer-events:none; white-space:nowrap;
+  max-width:60px; overflow:hidden; text-overflow:ellipsis;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LOAD SCREEN / OVERLAY
+═══════════════════════════════════════════════════════════════════ */
+#loadScreen {
+  position:fixed; inset:0; z-index:500;
+  background:var(--bg);
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:28px;
+}
+.load-title {
+  font-family:'Cinzel',serif; font-size:1.6rem; font-weight:700;
+  color:var(--gold2); letter-spacing:0.18em;
+  text-shadow:0 0 40px rgba(200,168,64,0.3);
+}
+.load-sub {
+  font-family:'IM Fell English',serif; font-style:italic;
+  color:var(--text3); font-size:0.95rem; letter-spacing:0.04em;
+}
+.load-dropzone {
+  width:360px; border:1px dashed var(--border2); border-radius:4px;
+  padding:24px 20px; text-align:center; cursor:pointer;
+  transition:all 0.2s; color:var(--text3);
+  font-family:'Crimson Text',serif; font-size:0.85rem;
+}
+.load-dropzone:hover, .load-dropzone.drag-over {
+  border-color:var(--gold); color:var(--gold); background:rgba(200,168,64,0.04);
+}
+.load-dropzone .dz-icon { font-size:2rem; margin-bottom:8px; }
+.load-row { display:flex; gap:12px; width:360px; }
+.load-file-btn {
+  flex:1; padding:9px; font-family:'Cinzel',serif; font-size:0.62rem;
+  letter-spacing:0.08em; border:1px solid var(--border2);
+  background:var(--bg2); color:var(--text2); cursor:pointer;
+  text-transform:uppercase; transition:all 0.15s;
+}
+.load-file-btn:hover { border-color:var(--gold); color:var(--gold); }
+.load-status { font-size:0.75rem; color:var(--text3); font-family:'Crimson Text',serif; min-height:1.2em; }
+.load-start-btn {
+  padding:10px 40px; font-family:'Cinzel',serif; font-size:0.75rem;
+  letter-spacing:0.12em; text-transform:uppercase;
+  background:rgba(200,168,64,0.08); border:1px solid var(--gold);
+  color:var(--gold); cursor:pointer; transition:all 0.2s;
+  opacity:0.4; pointer-events:none;
+}
+.load-start-btn.ready { opacity:1; pointer-events:auto; }
+.load-start-btn.ready:hover { background:rgba(200,168,64,0.18); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   AUTH MODAL
+═══════════════════════════════════════════════════════════════════ */
+#authModal {
+  position:fixed; inset:0; z-index:600;
+  background:rgba(4,6,4,0.85);
+  display:flex; align-items:center; justify-content:center;
+}
+.auth-box {
+  background:var(--bg2); border:1px solid var(--border2);
+  width:340px; padding:28px 24px;
+  font-family:'Cinzel',serif;
+}
+.auth-title { font-size:0.9rem; color:var(--gold2); letter-spacing:0.12em; margin-bottom:6px; }
+.auth-sub { font-family:'Crimson Text',serif; font-size:0.82rem; color:var(--text3); margin-bottom:18px; }
+.auth-input {
+  width:100%; padding:8px 10px; margin-bottom:10px;
+  background:var(--bg); border:1px solid var(--border2);
+  color:var(--text); font-family:'Crimson Text',serif; font-size:0.9rem;
+  outline:none; transition:border-color 0.15s;
+}
+.auth-input:focus { border-color:var(--gold); }
+.auth-input.error { border-color:var(--danger); }
+.auth-err { color:var(--danger); font-family:'Crimson Text',serif; font-size:0.75rem; margin-bottom:8px; min-height:1.1em; }
+.auth-btns { display:flex; gap:8px; margin-top:4px; }
+.auth-btn {
+  flex:1; padding:8px; font-family:'Cinzel',serif; font-size:0.6rem;
+  letter-spacing:0.1em; text-transform:uppercase; cursor:pointer; transition:all 0.15s;
+}
+.auth-btn.primary { background:rgba(200,168,64,0.1); border:1px solid var(--gold); color:var(--gold); }
+.auth-btn.primary:hover { background:rgba(200,168,64,0.2); }
+.auth-btn.secondary { background:transparent; border:1px solid var(--border2); color:var(--text3); }
+.auth-btn.secondary:hover { border-color:var(--text3); color:var(--text); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   TOOLTIP
+═══════════════════════════════════════════════════════════════════ */
+#tooltip {
+  position:fixed; z-index:200; pointer-events:none;
+  background:rgba(8,12,6,0.92); border:1px solid var(--border2);
+  padding:5px 9px; font-size:0.68rem; color:var(--text2);
+  font-family:'Crimson Text',serif;
+  max-width:200px; display:none;
+}
+#tooltip.visible { display:block; }
+#tooltip .tt-name { font-family:'Cinzel',serif; font-size:0.7rem; color:var(--gold); letter-spacing:0.06em; }
+#tooltip .tt-type { color:var(--text3); font-style:italic; font-size:0.6rem; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   LIVE FEED
+═══════════════════════════════════════════════════════════════════ */
+#liveFeed {
+  display:none; align-items:center; gap:7px;
+  font-family:'Cinzel',serif; font-size:0.55rem;
+  letter-spacing:0.07em; color:var(--text3);
+}
+#liveFeed.active { display:flex; }
+.live-dot {
+  width:7px; height:7px; border-radius:50%;
+  background:var(--green); flex-shrink:0;
+  box-shadow:0 0 6px var(--green);
+}
+.live-dot.stale { background:var(--muted); box-shadow:none; }
+.live-dot.error { background:var(--danger); box-shadow:0 0 6px var(--danger); }
+@keyframes livePulse {
+  0%,100% { opacity:1; box-shadow:0 0 6px var(--green); }
+  50%      { opacity:0.4; box-shadow:0 0 2px var(--green); }
+}
+.live-dot.pulsing { animation:livePulse 1.8s ease-in-out infinite; }
+#liveLabel { color:var(--text2); }
+#liveSub { color:var(--text3); font-size:0.5rem; }
+#liveNextChk { color:var(--muted); }
+
+/* New turn toast */
+#newTurnToast {
+  position:fixed; bottom:32px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--bg2); border:1px solid var(--gold);
+  padding:10px 24px; z-index:500; opacity:0;
+  font-family:'Cinzel',serif; font-size:0.72rem; color:var(--gold2);
+  letter-spacing:0.1em; text-align:center;
+  transition:opacity 0.4s, transform 0.4s;
+  pointer-events:none;
+}
+#newTurnToast.show {
+  opacity:1; transform:translateX(-50%) translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   MISC UI
+═══════════════════════════════════════════════════════════════════ */
+.legend-row {
+  display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  padding:0 10px; font-size:0.6rem;
+}
+.legend-item { display:flex; align-items:center; gap:4px; color:var(--text3); }
+.legend-swatch { width:10px; height:10px; border-radius:1px; flex-shrink:0; }
+#legendRow {
+  position:fixed; bottom:20px; left:10px; z-index:20;
+  background:rgba(8,12,6,0.82); border:1px solid var(--border);
+  padding:4px 8px; display:none; border-radius:2px;
+}
+</style>
+</head>
+<body>
+
+<!-- ════ LOAD SCREEN ════ -->
+<div id="loadScreen">
+  <div class="load-title">SUDOR</div>
+  <div class="load-sub">Nnom's World — Game Viewer</div>
+
+  <div class="load-dropzone" id="mapDZ">
+    <div class="dz-icon">🗺</div>
+    <div>Drop map image here<br><small style="font-size:0.75rem;color:var(--text3)">The original province colour map PNG</small></div>
+  </div>
+
+  <div class="load-row">
+    <label class="load-file-btn">
+      📁 Load Map Image
+      <input type="file" id="mapFileIn" accept="image/*" style="display:none">
+    </label>
+    <label class="load-file-btn">
+      💾 Load Game State
+      <input type="file" id="stateFileIn" accept=".json" style="display:none">
+    </label>
+  </div>
+  <div class="load-status" id="loadStatus">Awaiting files…</div>
+  <button class="load-start-btn" id="startBtn" onclick="beginSession()">Enter World</button>
+  <div style="font-size:0.68rem;color:var(--text3);font-family:'Crimson Text',serif;text-align:center;max-width:360px;line-height:1.6;margin-top:4px">
+    After loading, use <strong style="color:var(--gold)">📤 Export Viewer</strong> (admin only) to generate a shareable HTML file with the map already baked in — no uploads needed for viewers.
+  </div>
+</div>
+
+<!-- ════ AUTH MODAL ════ -->
+<div id="authModal" style="display:none">
+  <div class="auth-box">
+    <div class="auth-title">Identify Yourself</div>
+    <div class="auth-sub">Enter the admin password to gain full access, or continue as an observer with limited map visibility.</div>
+    <input type="password" class="auth-input" id="authPwd" placeholder="Admin password…" onkeydown="if(event.key==='Enter')tryAdmin()">
+    <div class="auth-err" id="authErr"></div>
+    <div class="auth-btns">
+      <button class="auth-btn primary" onclick="tryAdmin()">⚔ Enter as Admin</button>
+      <button class="auth-btn secondary" onclick="enterObserver()">👁 Observe Only</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ HEADER ════ -->
+<div class="hdr">
+  <div class="hdr-title">⚔ Sudor</div>
+  <div class="hdr-sep"></div>
+  <div class="turn-badge" id="turnBadge">
+    <span class="tb-season-icon" id="tbIcon">—</span>
+    <div class="tb-text">
+      <div class="tb-season" id="tbSeason" style="color:var(--muted)">—</div>
+      <div class="tb-year">Year <span id="tbYear">—</span></div>
+      <div class="tb-turn" id="tbTurn">Turn —</div>
+    </div>
+  </div>
+  <div id="liveFeed">
+    <div class="live-dot" id="liveDot"></div>
+    <div style="display:flex;flex-direction:column;line-height:1.3">
+      <span id="liveLabel">Live</span>
+      <span id="liveSub" id="liveSub">—</span>
+    </div>
+    <span id="liveNextChk"></span>
+  </div>
+  <div class="hdr-sep" id="liveSep" style="display:none"></div>
+  <div class="hdr-right">
+    <span class="role-badge" id="roleBadge">—</span>
+    <button class="hdr-btn admin-only" id="exportViewerBtn" onclick="exportViewer()"
+      title="Bake map + game state into a standalone HTML file anyone can open">
+      📤 Export Viewer
+    </button>
+    <button class="hdr-btn" id="configLiveBtn" onclick="showLiveConfig()"
+      title="Configure live polling URL">⚡ Live Feed</button>
+    <button class="hdr-btn" onclick="showAuthModal()">🔑 Switch Role</button>
+  </div>
+</div>
+
+<!-- ════ MODEBAR ════ -->
+<div class="modebar">
+  <div class="mode-group">
+    <button class="mmbtn" id="mm_default" onclick="setMode('default')">🗺 Default</button>
+    <button class="mmbtn" id="mm_biome"   onclick="setMode('biome')">🌿 Biomes</button>
+    <button class="mmbtn" id="mm_temp"    onclick="setMode('temp')">🌡 Temp</button>
+    <button class="mmbtn" id="mm_rain"    onclick="setMode('rain')">🌧 Rain</button>
+  </div>
+  <div class="mode-sep"></div>
+  <div class="mode-group">
+    <button class="mmbtn" id="mm_region"   onclick="setMode('region')">📍 Regions</button>
+    <button class="mmbtn" id="mm_religion" onclick="setMode('religion')">✝ Religion</button>
+    <button class="mmbtn" id="mm_ethnicity"onclick="setMode('ethnicity')">👤 Ethnicity</button>
+    <button class="mmbtn" id="mm_language" onclick="setMode('language')">🗣 Language</button>
+  </div>
+</div>
+
+<!-- ════ MAIN ════ -->
+<div class="main">
+  <div class="canvas-area" id="canvasArea">
+    <canvas id="mapCanvas"></canvas>
+    <canvas id="selectOverlay"></canvas>
+    <svg id="labelSvg"></svg>
+
+    <!-- Radial menu -->
+    <div id="radialMenu">
+      <div class="radial-backdrop" id="radialBg"></div>
+      <div class="radial-center-label" id="radialLabel"></div>
+    </div>
+
+    <div class="zoom-hud">
+      <button onclick="adjZoom(1/1.25)">−</button>
+      <span id="zoomPct">100%</span>
+      <button onclick="adjZoom(1.25)">+</button>
+      <button onclick="fitView()" title="Fit (F)">FIT</button>
+    </div>
+    <div class="info-bar">
+      <div>Province: <span id="ibProv">—</span></div>
+      <div>Biome: <span id="ibBiome">—</span></div>
+      <div>Temp: <span id="ibTemp">—</span></div>
+      <div>Rain: <span id="ibRain">—</span></div>
+    </div>
+  </div>
+
+  <!-- Right info panel -->
+  <div class="right-panel" id="rightPanel">
+    <div class="rp-head">
+      <span id="rpTitle">Province Info</span>
+      <span class="rp-close" onclick="closePanel()">✕</span>
+    </div>
+    <div class="rp-scroll" id="rpScroll"></div>
+  </div>
+</div>
+
+<div id="tooltip"><div class="tt-name" id="ttName"></div><div class="tt-type" id="ttType"></div></div>
+<div id="legendRow"></div>
+
+<input type="file" id="mapFileGlobal" accept="image/*" style="display:none;position:fixed;left:-9999px">
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════════════
+//  CONSTANTS — colours, biomes, cultures (same as cartographer)
+// ═══════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════
+//  EMBEDDED DATA — filled by exportViewer(). When non-null, the load
+//  screen is skipped and this data is used directly on startup.
+// ═══════════════════════════════════════════════════════════════════
+const EMBEDDED_MAP_SRC   = null; // base64 data URL of the map PNG
+const EMBEDDED_GAME_STATE = null; // serialised game state object
+// Set this to the GitHub raw URL of your state.json to enable live polling.
+// e.g. 'https://raw.githubusercontent.com/YOURNAME/YOURREPO/main/state.json'
+let LIVE_STATE_URL = null;
+
+const ADMIN_PASSWORD = 'LittleTulip528';
+
+const BIOME_COLORS = {
+  'Frozen Desert':[210,225,240],'Dry Tundra':[160,175,155],'Moist Tundra':[130,165,140],
+  'Wet Tundra':[100,150,130],'Rain Tundra':[80,140,125],'Cold Desert':[195,185,155],
+  'Dry Scrub':[160,155,105],'Steppe':[175,185,105],'Moist Forest':[60,120,60],
+  'Wet Forest':[35,95,50],'Desert':[215,190,120],'Grassland':[155,195,80],
+  'Woodland':[90,150,55],'Rain Forest':[20,90,35],'Chaparral':[175,160,75],
+  'Savanna':[195,185,70],'Dry Savanna':[210,175,80],'Soaked Forest':[30,100,55],
+  'Hot Desert':[230,185,85],'Hot Desert Scrub':[210,165,80],'Thorn Woodland':[170,145,65],
+  'Xeric Forest':[120,140,55],'Dry Forest':[70,125,45],
+};
+const TEMP_COLOR_KEYS_BASE = [
+  [-40,[235,242,255],[188,215,200]],[-5,[195,208,200],[105,162,110]],
+  [5,[165,170,145],[28,108,26]],[15,[175,162,105],[20,92,18]],
+  [25,[198,158,75],[32,98,16]],[35,[208,115,45],[48,88,20]],[50,[212,72,30],[68,82,25]],
+];
+const TEMP_COLOR_KEYS = TEMP_COLOR_KEYS_BASE.map(([t,a,b])=>[t,
+  [Math.min(255,Math.round(a[0]*0.75)),Math.min(255,Math.round(a[1]*1.20)),Math.min(255,Math.round(a[2]*1.00))],
+  [Math.min(255,Math.round(b[0]*0.75)),Math.min(255,Math.round(b[1]*1.20)),Math.min(255,Math.round(b[2]*1.00))],
+]);
+const RELIGION_COLORS = {
+  'Monotheist':[212,168,75],'Polytheist':[144,96,192],'Spiritualist':[64,184,208],
+  'Animist':[80,168,80],'Philosophist':[72,120,200],'None':[96,96,96],
+};
+const ETHNICITIES = ['Hathannan','Nyuke','Tiro','Kumu','Pochat','Cualcen','Jeyt','Moh',
+  'Apuqati','Manuai','Citli','Xitali','Tsyue','Keezeho','Percin','Takodan','Gaodan','Leni',
+  'Waniki','Istaq','Jaffali','Maklani','Rahqi','Erian','Saqen','Deminor','Burci','Itzibot',
+  'Piandu','Tanlieu','Shanguma','Andayy','Raroni','Hube','Assylin','Toko','Tchevosk',
+  'Grudenald','Vone','Samaskaari','Teployy','Fancene','Riotet','Cayugan','Okotepi',
+  'Nettorem','Ekepopto','Bellish','Sudori','Andei','Ilin'];
+const LANGUAGES = {
+  'Suri':90,'Hathannan':85,'Jaffali':80,'Saqen':78,'Rahqi':75,'Maklani':72,'Erian':70,
+  'Tanlieu':68,'Gaodan':66,'Takodan':64,'Tsyue':62,'Keezeho':60,'Xitali':58,'Citli':56,
+  'Manuai':54,'Apuqati':52,'Moh':50,'Jeyt':48,'Cualcen':46,'Pochat':44,'Kumu':42,
+  'Tiro':40,'Nyuke':38,'Hathannanite':36,'Shanguma':34,'Andayy':32,'Raroni':30,
+  'Hube':28,'Assylin':26,'Toko':24,'Tchevosk':22,'Grudenald':20,'Vone':18,
+  'Samaskaari':16,'Teployy':14,'Fancene':12,'Riotet':10,'Cayugan':8,'Okotepi':6,
+  'Nettorem':4,'Ekepopto':2,'Bellish':1,'Sudori':1,'Andei':1,'Ilin':1,
+  'Waniki':35,'Istaq':30,'Burci':25,'Itzibot':20,'Piandu':15,'Leni':10,'Percin':8,
+  'Deminor':6,'Tanlieu-Old':3,'Saqen-Old':2,
+};
+const LANGUAGE_NAMES = Object.keys(LANGUAGES).sort((a,b)=>LANGUAGES[b]-LANGUAGES[a]);
+
+function hsl2rgb(h,s,l){
+  h=h%360;s/=100;l/=100;
+  const c=(1-Math.abs(2*l-1))*s,x=c*(1-Math.abs((h/60)%2-1)),m=l-c/2;
+  let r=0,g=0,b=0;
+  if(h<60){r=c;g=x;}else if(h<120){r=x;g=c;}else if(h<180){g=c;b=x;}
+  else if(h<240){g=x;b=c;}else if(h<300){r=x;b=c;}else{r=c;b=x;}
+  return[Math.round((r+m)*255),Math.round((g+m)*255),Math.round((b+m)*255)];
+}
+const ETHNICITY_COLORS = {};
+ETHNICITIES.forEach((e,i)=>{
+  const h=(i*(360/52)+15)%360,s=i%2===0?72:60,l=i%3===0?58:i%3===1?48:65;
+  ETHNICITY_COLORS[e]=hsl2rgb(h,s,l);
+});
+const LANGUAGE_COLORS = {};
+LANGUAGE_NAMES.forEach((lang,i)=>{
+  const h=(i*(360/100)+185)%360,s=i%2===0?65:55,l2=i%4===0?60:i%4===1?50:i%4===2?68:44;
+  LANGUAGE_COLORS[lang]=hsl2rgb(h,s,l2);
+});
+
+const REGION_PALETTE = ['#d4704a','#4ab8d4','#d4c44a','#4ad478','#c44ad4','#d44a78',
+  '#4ad4b8','#d4944a','#784ad4','#98d44a','#d44ab8','#4ab0c8','#d4a84a','#4a68d4','#a8d44a'];
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+let isAdmin      = false;
+let mapImageData = null;   // raw ImageData from the map PNG
+let imgW = 0, imgH = 0;
+let gameState    = null;   // parsed game_state JSON
+let provinces    = {};     // pid → {id,hex,r,g,b,type,traversable,pixelCount,neighbors,...}
+let provinceData = {};     // hex → full game data object
+let regions      = [];     // array from game state
+let pidMap       = null;   // Int32Array pixel→pid
+let centroids    = {};     // pid → {x,y}
+let hexToPid     = {};     // '#rrggbb' → pid
+
+let mapLoaded    = false;
+let stateLoaded  = false;
+let sessionActive = false;
+
+let currentMode  = 'default';
+let selectedPid  = null;
+let highlightedPids = new Set();
+
+// Camera
+let camX=0, camY=0, camZ=1;
+let panning=false, panSX=0, panSY=0, panCX=0, panCY=0;
+
+// ═══════════════════════════════════════════════════════════════════
+//  ELEMENT REFS
+// ═══════════════════════════════════════════════════════════════════
+const mapCanvas    = document.getElementById('mapCanvas');
+const selOverlay   = document.getElementById('selectOverlay');
+const mCtx         = mapCanvas.getContext('2d', {willReadFrequently:true});
+const sCtx         = selOverlay.getContext('2d');
+const canvasArea   = document.getElementById('canvasArea');
+const tooltip      = document.getElementById('tooltip');
+const radialMenu   = document.getElementById('radialMenu');
+
+// ═══════════════════════════════════════════════════════════════════
+//  LOAD SCREEN LOGIC
+// ═══════════════════════════════════════════════════════════════════
+function updateLoadStatus() {
+  const el = document.getElementById('loadStatus');
+  const btn = document.getElementById('startBtn');
+  let parts = [];
+  if (mapLoaded)   parts.push('✓ Map image');
+  else             parts.push('○ Map image needed');
+  if (stateLoaded) parts.push('✓ Game state');
+  else             parts.push('○ Game state needed');
+  el.textContent = parts.join('  ·  ');
+  const ready = mapLoaded && stateLoaded;
+  btn.classList.toggle('ready', ready);
+}
+
+// ── Auto-load embedded data if this is an exported viewer ──────────
+(function checkEmbedded() {
+  if (!EMBEDDED_MAP_SRC || !EMBEDDED_GAME_STATE) return;
+  // Hide the load screen entirely — data is already baked in
+  document.getElementById('loadScreen').style.display = 'none';
+  // Load game state
+  gameState   = EMBEDDED_GAME_STATE;
+  stateLoaded = true;
+  // Load map image from embedded base64
+  const img = new Image();
+  img.onload = () => {
+    imgW = img.width; imgH = img.height;
+    mapCanvas.width  = selOverlay.width  = imgW;
+    mapCanvas.height = selOverlay.height = imgH;
+    mCtx.drawImage(img, 0, 0);
+    mapImageData = mCtx.getImageData(0, 0, imgW, imgH);
+    mapLoaded = true;
+    // Go straight to auth
+    document.getElementById('authModal').style.display = 'flex';
+  };
+  img.src = EMBEDDED_MAP_SRC;
+})();
+
+// Map drop zone
+const mapDZ = document.getElementById('mapDZ');
+mapDZ.addEventListener('click', ()=>document.getElementById('mapFileIn').click());
+mapDZ.addEventListener('dragover', e=>{e.preventDefault();mapDZ.classList.add('drag-over');});
+mapDZ.addEventListener('dragleave', ()=>mapDZ.classList.remove('drag-over'));
+mapDZ.addEventListener('drop', e=>{
+  e.preventDefault(); mapDZ.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) loadMapFile(e.dataTransfer.files[0]);
+});
+document.getElementById('mapFileIn').addEventListener('change', e=>{
+  if (e.target.files[0]) loadMapFile(e.target.files[0]);
+});
+document.getElementById('stateFileIn').addEventListener('change', e=>{
+  if (e.target.files[0]) loadStateFile(e.target.files[0]);
+});
+
+function loadMapFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      imgW = img.width; imgH = img.height;
+      mapCanvas.width  = selOverlay.width  = imgW;
+      mapCanvas.height = selOverlay.height = imgH;
+      mCtx.drawImage(img, 0, 0);
+      mapImageData = mCtx.getImageData(0, 0, imgW, imgH);
+      mapDZ.innerHTML = `<div class="dz-icon">✓</div><div><strong style="color:var(--green2)">${file.name}</strong><br><small style="color:var(--text3)">${imgW}×${imgH}</small></div>`;
+      mapLoaded = true;
+      updateLoadStatus();
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function loadStateFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      gameState = JSON.parse(ev.target.result);
+      stateLoaded = true;
+      document.getElementById('loadStatus').textContent =
+        `✓ Game state — ${Object.keys(gameState.provinces||{}).length} provinces`;
+      updateLoadStatus();
+    } catch(e) {
+      document.getElementById('loadStatus').textContent = '✗ Invalid JSON file';
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SESSION START
+// ═══════════════════════════════════════════════════════════════════
+function beginSession() {
+  if (!mapLoaded || !stateLoaded) return;
+  document.getElementById('loadScreen').style.display = 'none';
+  document.getElementById('authModal').style.display  = 'flex';
+}
+
+function showAuthModal() {
+  document.getElementById('authPwd').value = '';
+  document.getElementById('authErr').textContent = '';
+  document.getElementById('authPwd').classList.remove('error');
+  document.getElementById('authModal').style.display = 'flex';
+}
+
+function tryAdmin() {
+  const pwd = document.getElementById('authPwd').value;
+  if (pwd === ADMIN_PASSWORD) {
+    isAdmin = true;
+    document.body.classList.add('is-admin');
+    document.getElementById('roleBadge').textContent = '⚔ Admin';
+    document.getElementById('roleBadge').className = 'role-badge admin';
+    closeAuthAndStart();
+  } else {
+    document.getElementById('authErr').textContent = 'Incorrect password.';
+    document.getElementById('authPwd').classList.add('error');
+  }
+}
+
+function enterObserver() {
+  isAdmin = false;
+  document.body.classList.remove('is-admin');
+  document.getElementById('roleBadge').textContent = '👁 Observer';
+  document.getElementById('roleBadge').className = 'role-badge observer';
+  closeAuthAndStart();
+}
+
+function closeAuthAndStart() {
+  document.getElementById('authModal').style.display = 'none';
+  if (!sessionActive) {
+    sessionActive = true;
+    // Show a brief loading message, then init on next frame so UI updates first
+    const loadMsg = document.createElement('div');
+    loadMsg.style.cssText = 'position:fixed;inset:0;z-index:400;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px';
+    loadMsg.innerHTML = '<div style="font-family:Cinzel,serif;color:var(--gold);font-size:0.9rem;letter-spacing:0.12em">Building Map…</div><div style="font-size:0.75rem;color:var(--text3);font-family:Crimson Text,serif">Analysing provinces and borders</div>';
+    document.body.appendChild(loadMsg);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      initSession();
+      loadMsg.remove();
+    }));
+  } else {
+    redrawMap(); // re-render with new permissions
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SESSION INIT — build pidMap, provinces, centroids
+// ═══════════════════════════════════════════════════════════════════
+function initSession() {
+  buildProvincesFromState();    // builds provinces + hexToPid
+  buildPidMap();                // builds pidMap using hexToPid
+  buildNeighbors();             // uses pidMap for fast adjacency
+  buildBorderAndPixelLists();   // uses pidMap for borders + pixel lists
+  buildCentroids();             // uses pidMap for province centers
+  setTurnBadge();
+  fitView();
+  setupCamera();
+  setMode('default');
+  initLiveFeed();  // starts polling if LIVE_STATE_URL is set
+}
+
+function buildProvincesFromState() {
+  // gameState.provinces is keyed by hex string
+  provinceData = gameState.provinces || {};
+  regions      = gameState.regions   || [];
+
+  // Build numeric pid lookup from pixel analysis of the map
+  // We scan the image for unique colours and assign pids
+  const data = mapImageData.data;
+  const colorCounts = {};
+  for (let i = 0; i < data.length; i += 4) {
+    const r=data[i],g=data[i+1],b=data[i+2];
+    if (isRedMarker(r,g,b)) continue; // red cross pixels — handled by flood-fill later
+    const hex = toHex(r,g,b);
+    if (!colorCounts[hex]) colorCounts[hex] = {r,g,b,count:0};
+    colorCounts[hex].count++;
+  }
+
+  // Classify each unique colour into a province
+  let pid = 0;
+  provinces = {};
+  hexToPid  = {};
+
+  // Sort by count desc for stable ordering
+  const sorted = Object.entries(colorCounts).sort((a,b)=>b[1].count-a[1].count);
+
+  for (const [hex, info] of sorted) {
+    if (info.count < 3) continue; // skip dust pixels
+    // Use game state type if available (most reliable), else classify by color
+    const gsData = provinceData[hex];
+    const type = gsData?.type || classifyHex(info.r, info.g, info.b);
+    provinces[pid] = {
+      id: pid, hex, r:info.r, g:info.g, b:info.b,
+      type,
+      traversable: gsData?.traversable ?? (type !== 'ice'),
+      pixelCount: info.count,
+      neighbors: [],
+    };
+    hexToPid[hex] = pid;
+    pid++;
+  }
+
+  // Neighbors built after pidMap is ready (in initSession)
+}
+
+function toHex(r,g,b) {
+  return '#'+[r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+// Red cross marker pixels mark water province centers — must be excluded from province registration
+// and flood-filled to their surrounding water province after pidMap is built.
+function isRedMarker(r,g,b) {
+  return Math.abs(r-233)<=10 && Math.abs(g-37)<=10 && Math.abs(b-28)<=10;
+}
+
+function classifyHex(r,g,b) {
+  // Exact match like cartographer: white = ice, #090609 = water, rest = land
+  if (r===255 && g===255 && b===255) return 'ice';
+  if (r===9   && g===6   && b===9)   return 'water';
+  return 'land';
+}
+
+function buildNeighbors() {
+  // Use pidMap (already built) for O(pixels) neighbor detection — no string conversion
+  const n = pidMap.length;
+  const adjSets = {};
+  for (const pid in provinces) adjSets[pid] = new Set();
+
+  for (let p=0; p<n; p++) {
+    const pidA = pidMap[p];
+    if (pidA === -1) continue;
+    // right neighbor
+    if (p % imgW < imgW-1) {
+      const pidB = pidMap[p+1];
+      if (pidB !== -1 && pidB !== pidA) { adjSets[pidA].add(pidB); adjSets[pidB].add(pidA); }
+    }
+    // bottom neighbor
+    if (p + imgW < n) {
+      const pidB = pidMap[p+imgW];
+      if (pidB !== -1 && pidB !== pidA) { adjSets[pidA].add(pidB); adjSets[pidB].add(pidA); }
+    }
+  }
+  for (const pid in provinces) {
+    provinces[pid].neighbors = [...adjSets[pid]];
+  }
+}
+
+function buildPidMap() {
+  const data = mapImageData.data;
+  const n = imgW * imgH;
+  pidMap = new Int32Array(n).fill(-1);
+
+  // Pass A: assign all non-red pixels directly
+  for (let p=0; p<n; p++) {
+    const i = p<<2;
+    const r=data[i],g=data[i+1],b=data[i+2];
+    if (isRedMarker(r,g,b)) continue; // skip — flood-fill below
+    const hex = toHex(r,g,b);
+    const pid = hexToPid[hex];
+    if (pid !== undefined) pidMap[p] = pid;
+  }
+
+  // Pass B: flood-fill red marker pixels from resolved neighbors (5 passes)
+  for (let pass=0; pass<5; pass++) {
+    for (let p=0; p<n; p++) {
+      const i=p<<2;
+      if (!isRedMarker(data[i],data[i+1],data[i+2])) continue;
+      if (pidMap[p] !== -1) continue; // already resolved
+      const x = p % imgW, y = (p/imgW)|0;
+      if (x>0           && pidMap[p-1]     !== -1) { pidMap[p]=pidMap[p-1];     continue; }
+      if (x<imgW-1      && pidMap[p+1]     !== -1) { pidMap[p]=pidMap[p+1];     continue; }
+      if (y>0           && pidMap[p-imgW]  !== -1) { pidMap[p]=pidMap[p-imgW];  continue; }
+      if (y<imgH-1      && pidMap[p+imgW]  !== -1) { pidMap[p]=pidMap[p+imgW];           }
+    }
+  }
+}
+
+function buildCentroids() {
+  const sums = {};
+  for (const pid in provinces) sums[pid] = {sx:0,sy:0,n:0};
+  for (let y=0; y<imgH; y++) {
+    for (let x=0; x<imgW; x++) {
+      const pid = pidMap[y*imgW+x];
+      if (pid < 0) continue;
+      if (sums[pid]) { sums[pid].sx+=x; sums[pid].sy+=y; sums[pid].n++; }
+    }
+  }
+  centroids = {};
+  for (const pid in sums) {
+    const s = sums[pid];
+    if (s.n > 0) centroids[pid] = {x: s.sx/s.n, y: s.sy/s.n};
+  }
+}
+
+function setTurnBadge() {
+  const gs = gameState.globalState || {};
+  const turn = gs.currentTurn || 1;
+  const year = 1328 + Math.floor((turn-1)/4);
+  const seasonIdx = (turn-1)%4;
+  const seasons = [
+    { name:'Spring', icon:'🌸', color:'#a8d870' },
+    { name:'Summer', icon:'☀',  color:'#e8c040' },
+    { name:'Autumn', icon:'🍂', color:'#d07830' },
+    { name:'Winter', icon:'❄',  color:'#90b8e0' },
+  ];
+  const s = seasons[seasonIdx];
+  const iconEl   = document.getElementById('tbIcon');
+  const seasonEl = document.getElementById('tbSeason');
+  const yearEl   = document.getElementById('tbYear');
+  const turnEl   = document.getElementById('tbTurn');
+  if (iconEl)   iconEl.textContent   = s.icon;
+  if (seasonEl) { seasonEl.textContent = s.name; seasonEl.style.color = s.color; }
+  if (yearEl)   yearEl.textContent   = year + ' A.E.';
+  if (turnEl)   turnEl.textContent   = `Turn ${turn}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  COLOUR FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════
+function getLandColor(pd) {
+  if (!pd || pd.temp === null || pd.temp === undefined) return [108,108,108];
+  const temp = Math.max(-40, Math.min(50, pd.temp));
+  const woodFrac = Math.pow(Math.min(1,(pd.currentWood||0)/10000), 0.55);
+  let lo=TEMP_COLOR_KEYS[0], hi=TEMP_COLOR_KEYS[TEMP_COLOR_KEYS.length-1];
+  for (let i=0; i<TEMP_COLOR_KEYS.length-1; i++) {
+    if (temp>=TEMP_COLOR_KEYS[i][0] && temp<=TEMP_COLOR_KEYS[i+1][0]) {
+      lo=TEMP_COLOR_KEYS[i]; hi=TEMP_COLOR_KEYS[i+1]; break;
+    }
+  }
+  const t = hi[0]===lo[0] ? 1 : (temp-lo[0])/(hi[0]-lo[0]);
+  const lerp=(a,b,c,d)=>Math.round(a+t*(b-a)+woodFrac*((c+t*(d-c))-(a+t*(b-a))));
+  return [lerp(lo[1][0],hi[1][0],lo[2][0],hi[2][0]),lerp(lo[1][1],hi[1][1],lo[2][1],hi[2][1]),lerp(lo[1][2],hi[1][2],lo[2][2],hi[2][2])];
+}
+
+function getTempColor(temp) {
+  if (temp===null||temp===undefined) return [80,80,80];
+  const stops=[[-40,[120,180,255]],[-20,[80,140,220]],[-5,[120,190,180]],[5,[100,180,100]],[15,[160,200,60]],[25,[220,200,30]],[35,[230,120,20]],[50,[210,40,20]]];
+  let lo=stops[0],hi=stops[stops.length-1];
+  for (let i=0;i<stops.length-1;i++){if(temp>=stops[i][0]&&temp<=stops[i+1][0]){lo=stops[i];hi=stops[i+1];break;}}
+  const t=hi[0]===lo[0]?1:(temp-lo[0])/(hi[0]-lo[0]);
+  return [Math.round(lo[1][0]+t*(hi[1][0]-lo[1][0])),Math.round(lo[1][1]+t*(hi[1][1]-lo[1][1])),Math.round(lo[1][2]+t*(hi[1][2]-lo[1][2]))];
+}
+
+function getRainColor(precip) {
+  if (precip===null||precip===undefined) return [80,80,80];
+  const stops=[[0,[210,180,120]],[250,[190,200,150]],[500,[140,195,160]],[1000,[80,170,180]],[2000,[40,130,200]],[4000,[20,80,180]],[8000,[10,40,150]]];
+  let lo=stops[0],hi=stops[stops.length-1];
+  for (let i=0;i<stops.length-1;i++){if(precip>=stops[i][0]&&precip<=stops[i+1][0]){lo=stops[i];hi=stops[i+1];break;}}
+  const t=Math.min(1,hi[0]===lo[0]?1:(precip-lo[0])/(hi[0]-lo[0]));
+  return [Math.round(lo[1][0]+t*(hi[1][0]-lo[1][0])),Math.round(lo[1][1]+t*(hi[1][1]-lo[1][1])),Math.round(lo[1][2]+t*(hi[1][2]-lo[1][2]))];
+}
+
+function getMajority(pops, prop) {
+  if (!pops||!pops.length) return null;
+  const cnt={};
+  for (const p of pops){const v=p[prop];if(v)cnt[v]=(cnt[v]||0)+1;}
+  let best=null,bestN=0;
+  for (const [v,n] of Object.entries(cnt)){if(n>bestN){bestN=n;best=v;}}
+  return best;
+}
+
+function getProvinceColor(pid) {
+  const p   = provinces[pid];
+  const pd  = provinceData[p.hex];
+
+  if (currentMode === 'biome') {
+    if (p.type==='ice')   return [210,225,240];
+    if (p.type==='water') return [20,45,80];
+    return BIOME_COLORS[pd?.biome] || [100,100,100];
+  }
+  if (currentMode === 'temp') {
+    if (p.type==='ice')   return [200,220,255];
+    if (p.type==='water') return [20,40,80];
+    return getTempColor(pd?.temp??null);
+  }
+  if (currentMode === 'rain') {
+    if (p.type==='ice')   return [200,220,255];
+    if (p.type==='water') return [20,50,120];
+    return getRainColor(pd?.precip??null);
+  }
+  if (currentMode === 'religion') {
+    if (p.type!=='land') return p.type==='ice'?[180,200,220]:[15,25,45];
+    const maj = getMajority(pd?.pops,'religion');
+    return maj ? (RELIGION_COLORS[maj]||[80,80,80]) : [40,40,40];
+  }
+  if (currentMode === 'ethnicity') {
+    if (p.type!=='land') return p.type==='ice'?[180,200,220]:[15,25,45];
+    const maj = getMajority(pd?.pops,'ethnicity');
+    return maj ? (ETHNICITY_COLORS[maj]||[80,80,80]) : [40,40,40];
+  }
+  if (currentMode === 'language') {
+    if (p.type!=='land') return p.type==='ice'?[180,200,220]:[15,25,45];
+    const maj = getMajority(pd?.pops,'language');
+    return maj ? (LANGUAGE_COLORS[maj]||[80,80,80]) : [40,40,40];
+  }
+  if (currentMode === 'region') {
+    const reg = getRegion(p.hex);
+    if (reg) return hexToRgb(reg.color);
+    if (p.type==='ice')   return [65,70,80];
+    if (p.type==='water') return [12,22,42];
+    return [32,32,30];
+  }
+  // default
+  if (p.type==='ice') return [232,240,252];
+  if (p.type==='water') {
+    const wb = pd?.waterBiome;
+    if (wb==='Lake')          return [52,82,128];
+    if (wb==='Deep Water')    return [10,20,48];
+    if (wb==='Abyssal Ocean') return [5,10,30];
+    return [22,38,72];
+  }
+  return getLandColor(pd);
+}
+
+function hexToRgb(hex) {
+  return [parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)];
+}
+
+function getRegion(provHex) {
+  return regions.find(r => r.provinceHexes && r.provinceHexes.includes(provHex)) || null;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MAP RENDERING — fast precomputed approach
+// ═══════════════════════════════════════════════════════════════════
+let maskBuf   = null;
+let borderMap = null;   // Uint8Array: 1 if pixel is a border
+let pixelLists = null;  // Map<pid, Uint32Array> of non-border pixel indices
+
+// Called once after pidMap is built
+function buildBorderAndPixelLists() {
+  const n = pidMap.length;
+  borderMap  = new Uint8Array(n);
+  maskBuf    = new Uint8ClampedArray(n * 4);
+
+  // Pre-fill alpha
+  for (let i=3; i<n*4; i+=4) maskBuf[i] = 255;
+
+  // Build borderMap: a pixel is a border if its right or bottom neighbor is a different province
+  for (let p=0; p<n; p++) {
+    const pid = pidMap[p];
+    if (pid === -1) continue;
+    if ((p % imgW < imgW-1 && pidMap[p+1]    !== pid) ||
+        (p + imgW < n      && pidMap[p+imgW]  !== pid)) {
+      borderMap[p] = 1;
+    }
+  }
+
+  // Build per-province pixel lists (non-border only, for fast fill)
+  const tempLists = {};
+  for (const pid in provinces) tempLists[pid] = [];
+  for (let p=0; p<n; p++) {
+    const pid = pidMap[p];
+    if (pid !== -1 && !borderMap[p] && tempLists[pid]) tempLists[pid].push(p);
+  }
+  pixelLists = new Map();
+  for (const pid in tempLists) pixelLists.set(+pid, new Uint32Array(tempLists[pid]));
+}
+
+function redrawMap() {
+  if (!pidMap || !borderMap || !pixelLists) return;
+
+  // 1. Precompute one color per province (O(provinces), not O(pixels))
+  let maxPid = 0;
+  for (const pid in provinces) if (+pid > maxPid) maxPid = +pid;
+  maxPid++;
+  const cR = new Uint8Array(maxPid), cG = new Uint8Array(maxPid), cB = new Uint8Array(maxPid);
+  for (const pid in provinces) {
+    const [r,g,b] = getProvinceColor(+pid);
+    cR[pid]=r; cG[pid]=g; cB[pid]=b;
+  }
+
+  // 2. Fill non-border pixels via pixel lists
+  for (const [pid, pixels] of pixelLists) {
+    const r=cR[pid], g=cG[pid], b=cB[pid];
+    for (let k=0; k<pixels.length; k++) {
+      const i = pixels[k] << 2;
+      maskBuf[i]=r; maskBuf[i+1]=g; maskBuf[i+2]=b;
+    }
+  }
+
+  // 3. Paint border pixels: dark gray for land, blue-gray for water
+  const n = pidMap.length;
+  for (let p=0; p<n; p++) {
+    if (!borderMap[p]) continue;
+    const i = p << 2;
+    const pid = pidMap[p];
+    if (pid !== -1 && provinces[pid]?.type === 'water') {
+      maskBuf[i]=70; maskBuf[i+1]=80; maskBuf[i+2]=100;
+    } else {
+      maskBuf[i]=38; maskBuf[i+1]=38; maskBuf[i+2]=38;
+    }
+  }
+
+  mCtx.putImageData(new ImageData(maskBuf, imgW, imgH), 0, 0);
+  applyTransform();
+  rebuildSelOverlay();
+}
+
+function applyTransform() {
+  const t = `translate(${camX}px,${camY}px) scale(${camZ})`;
+  mapCanvas.style.transform = t;
+  selOverlay.style.transform = t;
+  document.getElementById('labelSvg').style.transform = t;
+  document.getElementById('zoomPct').textContent = Math.round(camZ*100)+'%';
+}
+
+// ── Selection overlay — fast pixel-list based approach ──────────────
+let selBuf = null;
+function rebuildSelOverlay() {
+  if (!pidMap || !pixelLists) return;
+  if (!selBuf || selBuf.length !== imgW*imgH*4) selBuf = new Uint8ClampedArray(imgW*imgH*4);
+  else selBuf.fill(0);
+
+  // Neighbor highlight tint
+  for (const npid of highlightedPids) {
+    const pixels = pixelLists.get(npid);
+    if (!pixels) continue;
+    for (let k=0; k<pixels.length; k++) {
+      const i = pixels[k] << 2;
+      selBuf[i]=200; selBuf[i+1]=168; selBuf[i+2]=64; selBuf[i+3]=46;
+    }
+  }
+
+  // Selected province: tint interior + bright border
+  if (selectedPid !== null) {
+    const pixels = pixelLists.get(selectedPid);
+    if (pixels) {
+      for (let k=0; k<pixels.length; k++) {
+        const i = pixels[k] << 2;
+        selBuf[i]=200; selBuf[i+1]=168; selBuf[i+2]=64; selBuf[i+3]=110;
+      }
+    }
+    // Border: scan pidMap for selected province border pixels
+    const n = pidMap.length;
+    for (let p=0; p<n; p++) {
+      if (pidMap[p] !== selectedPid) continue;
+      const x = p % imgW, y = (p / imgW)|0;
+      const isEdge = (x>0&&pidMap[p-1]!==selectedPid)||(x<imgW-1&&pidMap[p+1]!==selectedPid)||
+                     (y>0&&pidMap[p-imgW]!==selectedPid)||(y<imgH-1&&pidMap[p+imgW]!==selectedPid);
+      if (isEdge) { const i=p<<2; selBuf[i]=255;selBuf[i+1]=220;selBuf[i+2]=80;selBuf[i+3]=220; }
+    }
+  }
+
+  sCtx.putImageData(new ImageData(selBuf, imgW, imgH), 0, 0);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MAP MODES
+// ═══════════════════════════════════════════════════════════════════
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mmbtn').forEach(b=>b.classList.remove('active'));
+  const btn = document.getElementById('mm_'+mode);
+  if (btn) btn.classList.add('active');
+  redrawMap();
+  updateLegend();
+}
+
+function updateLegend() {
+  const el = document.getElementById('legendRow');
+  el.style.display = 'none';
+  el.innerHTML = '';
+  if (currentMode==='biome') {
+    el.style.display='flex';
+    el.innerHTML = Object.entries(BIOME_COLORS).map(([name,[r,g,b]])=>
+      `<div class="legend-item"><div class="legend-swatch" style="background:rgb(${r},${g},${b})"></div>${name}</div>`
+    ).join('');
+  }
+  if (currentMode==='temp') {
+    el.style.display='flex';
+    const pts=[[-40,'Deep Freeze'],[-5,'Cold'],[5,'Cool'],[15,'Temperate'],[25,'Warm'],[35,'Hot'],[50,'Scorching']];
+    el.innerHTML = pts.map(([t,l])=>{const [r,g,b]=getTempColor(t);return `<div class="legend-item"><div class="legend-swatch" style="background:rgb(${r},${g},${b})"></div>${l} (${t}°C)</div>`;}).join('');
+  }
+  if (currentMode==='rain') {
+    el.style.display='flex';
+    const pts=[[0,'Arid'],[250,'Dry'],[750,'Moderate'],[1500,'Wet'],[3000,'Very Wet'],[6000,'Soaked']];
+    el.innerHTML = pts.map(([p,l])=>{const [r,g,b]=getRainColor(p);return `<div class="legend-item"><div class="legend-swatch" style="background:rgb(${r},${g},${b})"></div>${l} (${p}mm)</div>`;}).join('');
+  }
+  if (currentMode==='religion') {
+    el.style.display='flex';
+    el.innerHTML = Object.entries(RELIGION_COLORS).map(([n,[r,g,b]])=>
+      `<div class="legend-item"><div class="legend-swatch" style="background:rgb(${r},${g},${b})"></div>${n}</div>`
+    ).join('');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CAMERA
+// ═══════════════════════════════════════════════════════════════════
+function fitView() {
+  const area = canvasArea.getBoundingClientRect();
+  const scaleX = area.width  / imgW;
+  const scaleY = area.height / imgH;
+  camZ = Math.min(scaleX, scaleY) * 0.95;
+  camX = (area.width  - imgW*camZ)/2;
+  camY = (area.height - imgH*camZ)/2;
+  applyTransform();
+}
+
+function adjZoom(factor) {
+  const area = canvasArea.getBoundingClientRect();
+  const cx = area.width/2, cy = area.height/2;
+  const newZ = Math.max(0.05, Math.min(32, camZ*factor));
+  camX = cx - (cx-camX)*(newZ/camZ);
+  camY = cy - (cy-camY)*(newZ/camZ);
+  camZ = newZ;
+  applyTransform();
+}
+
+function setupCamera() {
+  canvasArea.addEventListener('wheel', e=>{
+    e.preventDefault();
+    const rect = canvasArea.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const factor = e.deltaY < 0 ? 1.15 : 1/1.15;
+    const newZ = Math.max(0.05, Math.min(32, camZ*factor));
+    camX = mx - (mx-camX)*(newZ/camZ);
+    camY = my - (my-camY)*(newZ/camZ);
+    camZ = newZ;
+    applyTransform();
+  }, {passive:false});
+
+  canvasArea.addEventListener('mousedown', e=>{
+    if (e.button===1 || (e.button===0 && e.altKey)) {
+      panning=true; panSX=e.clientX; panSY=e.clientY; panCX=camX; panCY=camY;
+      canvasArea.style.cursor='grabbing'; e.preventDefault();
+    }
+  });
+  window.addEventListener('mousemove', e=>{
+    if (panning) {
+      camX = panCX+(e.clientX-panSX);
+      camY = panCY+(e.clientY-panSY);
+      applyTransform(); return;
+    }
+    handleHover(e);
+  });
+  window.addEventListener('mouseup', e=>{
+    if (panning) { panning=false; canvasArea.style.cursor=''; }
+  });
+
+  canvasArea.addEventListener('click', e=>{
+    if (e.altKey) return;
+    const pid = getPidAtEvent(e);
+    if (pid === null) { deselectAll(); return; }
+    selectProvince(pid, e.clientX, e.clientY);
+  });
+
+  document.addEventListener('keydown', e=>{
+    if (e.key==='f'||e.key==='F') fitView();
+    if (e.key==='Escape') { deselectAll(); closePanel(); closeRadial(); }
+  });
+}
+
+function getPidAtEvent(e) {
+  const rect = canvasArea.getBoundingClientRect();
+  const mx = (e.clientX - rect.left - camX) / camZ;
+  const my = (e.clientY - rect.top  - camY) / camZ;
+  const x = Math.floor(mx), y = Math.floor(my);
+  if (x<0||y<0||x>=imgW||y>=imgH) return null;
+  const pid = pidMap[y*imgW+x];
+  return pid < 0 ? null : pid;
+}
+
+function handleHover(e) {
+  const pid = getPidAtEvent(e);
+  tooltip.classList.toggle('visible', pid!==null);
+  if (pid===null) {
+    updateInfoBar(null); return;
+  }
+  const p  = provinces[pid];
+  const pd = provinceData[p.hex];
+  tooltip.style.left = (e.clientX+12)+'px';
+  tooltip.style.top  = (e.clientY-6)+'px';
+  document.getElementById('ttName').textContent = pd?.displayName || `Province #${pid}`;
+  document.getElementById('ttType').textContent = p.type + (pd?.biome ? ' · '+pd.biome : '');
+  updateInfoBar(pid, pd, p);
+}
+
+function updateInfoBar(pid, pd, p) {
+  document.getElementById('ibProv').textContent  = pid!==null ? (pd?.displayName||`#${pid}`) : '—';
+  document.getElementById('ibBiome').textContent = pd?.biome  || (p?.waterBiome)||'—';
+  document.getElementById('ibTemp').textContent  = pd?.temp!=null ? pd.temp+'°C' : '—';
+  document.getElementById('ibRain').textContent  = pd?.precip!=null ? pd.precip+'mm' : '—';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  PROVINCE SELECTION + RADIAL MENU
+// ═══════════════════════════════════════════════════════════════════
+function selectProvince(pid, screenX, screenY) {
+  selectedPid = pid;
+  highlightedPids = new Set(provinces[pid].neighbors || []);
+  rebuildSelOverlay();
+  showRadial(pid, screenX, screenY);
+}
+
+function deselectAll() {
+  selectedPid = null;
+  highlightedPids.clear();
+  rebuildSelOverlay();
+  closeRadial();
+}
+
+function closePanel() {
+  document.getElementById('rightPanel').classList.remove('open');
+}
+
+function closeRadial() {
+  radialMenu.classList.remove('visible');
+  radialMenu.innerHTML = '<div class="radial-backdrop" id="radialBg"></div><div class="radial-center-label" id="radialLabel"></div>';
+}
+
+function showRadial(pid, screenX, screenY) {
+  const p  = provinces[pid];
+  const pd = provinceData[p.hex];
+
+  // Position at click, clamped to viewport
+  const area = canvasArea.getBoundingClientRect();
+  const rx = screenX - area.left;
+  const ry = screenY - area.top;
+
+  // Determine which buttons to show
+  const isLand  = p.type === 'land';
+  const isWater = p.type === 'water';
+
+  const btns = [];
+  // All provinces
+  btns.push({ icon:'ℹ', label:'General\nInfo', action:()=>showGeneralInfo(pid) });
+  if (isLand) {
+    btns.push({ icon:'👥', label:'Pop\nInfo',     action:()=>showPopInfo(pid) });
+    btns.push({ icon:'🌿', label:'Life\nInfo',    action:()=>showLifeInfo(pid) });
+    if (isAdmin) {
+      btns.push({ icon:'⛏', label:'Resource\nInfo', action:()=>showResourceInfo(pid) });
+    }
+  }
+  if (isWater && isAdmin) {
+    btns.push({ icon:'🐟', label:'Fish\nInfo', action:()=>showFishInfo(pid) });
+  }
+  if (isAdmin) {
+    btns.push({ icon:'✏', label:'Edit', action:()=>openEditPanel(pid) });
+  }
+
+  const N = btns.length;
+  // Scale radius with zoom but clamp sensibly for screen space
+  const baseR = Math.max(55, Math.min(90, 55 * Math.sqrt(camZ)));
+  const backdropR = baseR + 30;
+
+  radialMenu.style.left = rx+'px';
+  radialMenu.style.top  = ry+'px';
+
+  // Rebuild DOM
+  radialMenu.innerHTML = '';
+
+  // Backdrop circle
+  const bd = document.createElement('div');
+  bd.className = 'radial-backdrop';
+  bd.style.width = bd.style.height = (backdropR*2)+'px';
+  bd.style.transform = 'translate(-50%,-50%)';
+  radialMenu.appendChild(bd);
+
+  // Center label — name + region
+  const reg2 = getRegion(p.hex);
+  const cl = document.createElement('div');
+  cl.className = 'radial-center-label';
+  const provName = pd?.displayName || `Province #${pid}`;
+  cl.innerHTML = `<span style="color:var(--gold);font-size:0.52rem">${provName}</span>${reg2?`<br><span style="color:${reg2.color};font-size:0.44rem">${reg2.name}</span>`:''}`;
+  radialMenu.appendChild(cl);
+
+  // Buttons arranged in a circle
+  for (let i=0; i<N; i++) {
+    const angle = (2*Math.PI*i/N) - Math.PI/2;
+    const bx = Math.round(Math.cos(angle)*baseR);
+    const by = Math.round(Math.sin(angle)*baseR);
+    const btn = document.createElement('div');
+    btn.className = 'radial-btn';
+    btn.style.left = (50 + bx/backdropR*50) + '%';
+    btn.style.top  = (50 + by/backdropR*50) + '%';
+    btn.innerHTML = `<span class="icon">${btns[i].icon}</span>${btns[i].label.replace('\n','<br>')}`;
+    btn.addEventListener('click', e=>{ e.stopPropagation(); closeRadial(); btns[i].action(); });
+    radialMenu.appendChild(btn);
+  }
+
+  // Close on outside click
+  radialMenu.classList.add('visible');
+  setTimeout(()=>document.addEventListener('click', closeOnOutside, {once:true}), 10);
+}
+
+function closeOnOutside(e) {
+  if (!radialMenu.contains(e.target)) closeRadial();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INFO PANELS
+// ═══════════════════════════════════════════════════════════════════
+function openPanel(title, html) {
+  document.getElementById('rpTitle').textContent = title;
+  document.getElementById('rpScroll').innerHTML = html;
+  document.getElementById('rightPanel').classList.add('open');
+}
+
+function fmt(v, unit='') { return v!=null ? `${v}${unit}` : '<span class="rp-val none">—</span>'; }
+function fmtNum(v) { return v!=null ? Number(v).toLocaleString() : '<span class="rp-val none">—</span>'; }
+
+function getControllingCountry(provHex) {
+  const countries = gameState.countries || [];
+  const list = Array.isArray(countries) ? countries : Object.values(countries);
+  return list.find(c => c.provinceHexes && c.provinceHexes.includes(provHex)) || null;
+}
+
+function showGeneralInfo(pid) {
+  const p   = provinces[pid];
+  const pd  = provinceData[p.hex];
+  const reg = getRegion(p.hex);
+  const ctrl = getControllingCountry(p.hex);
+  const isLand  = p.type==='land';
+  const isWater = p.type==='water';
+  const name = pd?.displayName || `Province #${pid}`;
+
+  let h = `<div style="padding:8px 0 10px;border-bottom:1px solid var(--border);margin-bottom:10px">
+    <div style="font-family:'Cinzel',serif;font-size:0.85rem;color:var(--gold2);margin-bottom:3px">${name}</div>
+    ${reg ? `<div style="font-size:0.7rem;color:${reg.color};margin-bottom:2px">📍 ${reg.name}</div>` : '<div style="font-size:0.7rem;color:var(--text3);font-style:italic">No Region</div>'}
+    ${ctrl ? `<div style="font-size:0.7rem;color:#8ab8e8">🏳 Controlled by <strong style="color:#aacfef">${ctrl.name||'Unknown'}</strong></div>` : '<div style="font-size:0.68rem;color:var(--text3)">🏳 Unclaimed territory</div>'}
+  </div>`;
+
+  h += `<div class="rp-section">
+    <div class="rp-section-title">Province</div>
+    <div class="rp-row"><span class="rp-label">Type</span><span class="rp-val">${p.type.charAt(0).toUpperCase()+p.type.slice(1)}</span></div>
+    <div class="rp-row"><span class="rp-label">Traversable</span><span class="rp-val">${p.traversable?'Yes':'No'}</span></div>
+    <div class="rp-row"><span class="rp-label">Neighbors</span><span class="rp-val">${(p.neighbors||[]).length}</span></div>
+  </div>`;
+
+  if (isLand) {
+    h += `<div class="rp-section">
+      <div class="rp-section-title">Climate</div>
+      <div class="rp-row"><span class="rp-label">Temperature</span><span class="rp-val">${pd?.temp!=null?pd.temp+'°C':'—'}</span></div>
+      <div class="rp-row"><span class="rp-label">Precipitation</span><span class="rp-val">${pd?.precip!=null?pd.precip+' mm/yr':'—'}</span></div>
+      <div class="rp-row"><span class="rp-label">Biome</span><span class="rp-val good">${pd?.biome||'—'}</span></div>
+    </div>`;
+  }
+  if (isWater) {
+    h += `<div class="rp-section">
+      <div class="rp-section-title">Water</div>
+      <div class="rp-row"><span class="rp-label">Water Biome</span><span class="rp-val">${pd?.waterBiome||'—'}</span></div>
+    </div>`;
+  }
+  openPanel('General Info', h);
+}
+
+function showPopInfo(pid) {
+  const p  = provinces[pid];
+  const pd = provinceData[p.hex];
+  const pops = pd?.pops || [];
+  let h = `<div class="rp-section">
+    <div class="rp-section-title">Population</div>
+    <div class="rp-row"><span class="rp-label">Total Pops</span><span class="rp-val ${pops.length?'good':'none'}">${pops.length||'None'}</span></div>
+    <div class="rp-row"><span class="rp-label">Spawn Ethnicity</span><span class="rp-val">${pd?.spawnEthnicity||'—'}</span></div>
+    <div class="rp-row"><span class="rp-label">Spawn Language</span><span class="rp-val">${pd?.spawnLanguage||'—'}</span></div>
+    <div class="rp-row"><span class="rp-label">Spawn Religion</span><span class="rp-val">${pd?.spawnReligion||'—'}</span></div>
+  </div>`;
+  if (pops.length) {
+    h += `<div class="rp-section"><div class="rp-section-title">Pops (${pops.length})</div><div class="rp-pops-list">`;
+    for (const pop of pops) {
+      const job = pop.job ? `${pop.job.type.replace('_',' ')}` : 'Idle';
+      h += `<div class="rp-pop-row">
+        <span class="pop-eth">${pop.ethnicity||'?'}</span> · ${pop.language||'?'} · ${pop.religion||'?'}
+        <br><span style="color:var(--text3);font-size:0.65rem">HP: ${pop.hp??'?'} · Happiness: ${pop.happiness??'?'} · ${job}</span>
+      </div>`;
+    }
+    h += '</div></div>';
+  }
+  openPanel('Pop Info', h);
+}
+
+function showLifeInfo(pid) {
+  const p  = provinces[pid];
+  const pd = provinceData[p.hex];
+  const plants  = pd?.plants  || [];
+  const animals = pd?.animals || [];
+  let h = `<div class="rp-section">
+    <div class="rp-section-title">Flora &amp; Fauna</div>
+    <div class="rp-row"><span class="rp-label">Plants</span><span class="rp-val ${plants.length?'good':'none'}">${plants.length?plants.length:'None'}</span></div>
+    <div class="rp-row"><span class="rp-label">Animals</span><span class="rp-val ${animals.length?'good':'none'}">${animals.length?animals.length:'None'}</span></div>
+  </div>`;
+  if (plants.length) {
+    h += `<div class="rp-section"><div class="rp-section-title">Plants</div><div class="rp-chips">`;
+    h += plants.map(pl=>`<span class="rp-chip">🌿 ${pl}</span>`).join('');
+    h += '</div></div>';
+  }
+  if (animals.length) {
+    h += `<div class="rp-section"><div class="rp-section-title">Animals</div><div class="rp-chips">`;
+    h += animals.map(an=>`<span class="rp-chip">🐾 ${an}</span>`).join('');
+    h += '</div></div>';
+  }
+  // Forest (admin sees current/max, observer sees general)
+  if (isAdmin) {
+    h += `<div class="rp-section"><div class="rp-section-title">Forest</div>
+      <div class="rp-row"><span class="rp-label">Current Wood</span><span class="rp-val">${fmtNum(pd?.currentWood)}</span></div>
+      <div class="rp-row"><span class="rp-label">Max Wood</span><span class="rp-val">${fmtNum(pd?.maxWood)}</span></div>
+      ${pd?.maxWood ? `<div class="rp-bar"><div class="rp-bar-fill" style="width:${Math.round(100*(pd.currentWood||0)/pd.maxWood)}%"></div></div>` : ''}
+    </div>`;
+  }
+  openPanel('Life Info', h);
+}
+
+function showResourceInfo(pid) {
+  // Admin only
+  const p  = provinces[pid];
+  const pd = provinceData[p.hex];
+  const res = pd?.currentResources || {};
+  const max = pd?.maxAmounts || {};
+  const keys = Object.keys(max).filter(k=>(max[k]||0)>0);
+  let h = `<div class="rp-section"><div class="rp-section-title">Natural Resources</div>`;
+  if (!keys.length) {
+    h += `<div style="color:var(--text3);font-style:italic;font-size:0.75rem">No resources in this province.</div>`;
+  } else {
+    for (const k of keys) {
+      const cur = res[k]||0, mx = max[k]||0;
+      const pct = mx>0 ? Math.round(100*cur/mx) : 0;
+      h += `<div class="rp-res-row">
+        <span style="text-transform:capitalize">${k}</span>
+        <span class="res-amt">${fmtNum(cur)} / ${fmtNum(mx)}</span>
+      </div>
+      <div class="rp-bar"><div class="rp-bar-fill" style="width:${pct}%;background:${pct>60?'var(--green)':pct>30?'#b8902a':'var(--danger)'}"></div></div>`;
+    }
+  }
+  h += '</div>';
+  openPanel('Resource Info', h);
+}
+
+function showFishInfo(pid) {
+  const p  = provinces[pid];
+  const pd = provinceData[p.hex];
+  const h = `<div class="rp-section">
+    <div class="rp-section-title">Seafood (Admin)</div>
+    <div class="rp-row"><span class="rp-label">Current Seafood</span><span class="rp-val">${fmtNum(pd?.currentSeafood)}</span></div>
+    <div class="rp-row"><span class="rp-label">Max Seafood</span><span class="rp-val">${fmtNum(pd?.maxSeafood)}</span></div>
+    ${pd?.maxSeafood ? `<div class="rp-bar"><div class="rp-bar-fill" style="width:${Math.round(100*(pd.currentSeafood||0)/(pd.maxSeafood||1))}%"></div></div>` : ''}
+  </div>`;
+  openPanel('Fish Info', h);
+}
+
+function openEditPanel(pid) {
+  // Admin: open a side-panel with province editing controls
+  const p  = provinces[pid];
+  const pd = provinceData[p.hex];
+  const isLand = p.type==='land';
+
+  let h = `<div class="rp-section"><div class="rp-section-title">Identity</div>
+    <div class="rp-row" style="flex-direction:column;gap:4px">
+      <span class="rp-label">Display Name</span>
+      <input id="ep_name" style="width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-family:'Crimson Text',serif;font-size:0.8rem" value="${pd?.displayName||''}">
+    </div>
+  </div>`;
+
+  if (isLand) {
+    h += `<div class="rp-section"><div class="rp-section-title">Climate</div>
+      <div class="rp-row" style="flex-direction:column;gap:4px">
+        <span class="rp-label">Temperature (°C)</span>
+        <input id="ep_temp" type="number" min="-40" max="50" style="width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-family:'Crimson Text',serif" value="${pd?.temp??''}">
+      </div>
+      <div class="rp-row" style="flex-direction:column;gap:4px;margin-top:6px">
+        <span class="rp-label">Precipitation (mm/yr)</span>
+        <input id="ep_precip" type="number" min="0" max="10000" style="width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-family:'Crimson Text',serif" value="${pd?.precip??''}">
+      </div>
+    </div>
+    <div class="rp-section"><div class="rp-section-title">Forest</div>
+      <div class="rp-row" style="flex-direction:column;gap:4px">
+        <span class="rp-label">Current Wood</span>
+        <input id="ep_wood" type="number" min="0" style="width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-family:'Crimson Text',serif" value="${pd?.currentWood??0}">
+      </div>
+    </div>
+    <div class="rp-section"><div class="rp-section-title">Spawn Culture</div>
+      <div class="rp-row" style="flex-direction:column;gap:4px">
+        <span class="rp-label">Ethnicity</span>
+        <input id="ep_eth" style="width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-family:'Crimson Text',serif" value="${pd?.spawnEthnicity||''}">
+      </div>
+      <div class="rp-row" style="flex-direction:column;gap:4px;margin-top:6px">
+        <span class="rp-label">Language</span>
+        <input id="ep_lang" style="width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-family:'Crimson Text',serif" value="${pd?.spawnLanguage||''}">
+      </div>
+      <div class="rp-row" style="flex-direction:column;gap:4px;margin-top:6px">
+        <span class="rp-label">Religion</span>
+        <input id="ep_rel" style="width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:4px 6px;font-family:'Crimson Text',serif" value="${pd?.spawnReligion||''}">
+      </div>
+    </div>`;
+
+    // Resources edit
+    const resKeys = Object.keys(pd?.maxAmounts||{}).filter(k=>(pd.maxAmounts[k]||0)>0||(pd.currentResources?.[k]||0)>0);
+    if (resKeys.length) {
+      h += `<div class="rp-section"><div class="rp-section-title">Resources (current)</div>`;
+      for (const k of resKeys) {
+        const cur = pd?.currentResources?.[k]||0;
+        const mx  = pd?.maxAmounts?.[k]||0;
+        h += `<div class="rp-row"><span class="rp-label" style="text-transform:capitalize">${k}</span>
+          <input id="ep_res_${k}" type="number" min="0" max="${mx}"
+            style="width:70px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:2px 4px;font-size:0.7rem;text-align:right"
+            value="${cur}">
+          <span class="rp-label">/ ${fmtNum(mx)}</span></div>`;
+      }
+      h += '</div>';
+    }
+  }
+
+  h += `<div style="display:flex;gap:6px;margin-top:10px">
+    <button onclick="saveEdit(${pid})"
+      style="flex:1;padding:6px;background:rgba(106,184,64,0.1);border:1px solid var(--green);color:var(--green);font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer">
+      ✓ Save
+    </button>
+    <button onclick="closePanel()"
+      style="flex:1;padding:6px;background:transparent;border:1px solid var(--border2);color:var(--text3);font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer">
+      Cancel
+    </button>
+  </div>`;
+
+  openPanel('✏ Edit Province', h);
+}
+
+function saveEdit(pid) {
+  const p  = provinces[pid];
+  if (!provinceData[p.hex]) return;
+  const pd = provinceData[p.hex];
+
+  const name = document.getElementById('ep_name')?.value?.trim();
+  if (name !== undefined) pd.displayName = name || null;
+
+  const temp = document.getElementById('ep_temp')?.value;
+  if (temp !== undefined && temp !== '') pd.temp = parseFloat(temp);
+
+  const precip = document.getElementById('ep_precip')?.value;
+  if (precip !== undefined && precip !== '') pd.precip = parseFloat(precip);
+
+  const wood = document.getElementById('ep_wood')?.value;
+  if (wood !== undefined && wood !== '') pd.currentWood = parseFloat(wood);
+
+  pd.spawnEthnicity = document.getElementById('ep_eth')?.value?.trim() || '';
+  pd.spawnLanguage  = document.getElementById('ep_lang')?.value?.trim() || '';
+  pd.spawnReligion  = document.getElementById('ep_rel')?.value?.trim() || '';
+
+  // Resources
+  if (pd.currentResources) {
+    for (const k of Object.keys(pd.currentResources)) {
+      const el = document.getElementById(`ep_res_${k}`);
+      if (el) pd.currentResources[k] = Math.max(0, Math.min(pd.maxAmounts?.[k]||0, parseInt(el.value)||0));
+    }
+  }
+
+  closePanel();
+  redrawMap(); // re-render in case temp/precip changed
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  LIVE FEED — polls GitHub raw URL for state updates
+// ═══════════════════════════════════════════════════════════════════
+function showLiveConfig() {
+  const current = LIVE_STATE_URL || '';
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:800;background:rgba(4,6,4,0.88);display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid var(--border2);width:460px;padding:24px 22px;font-family:'Cinzel',serif">
+      <div style="font-size:0.85rem;color:var(--gold2);letter-spacing:0.1em;margin-bottom:6px">⚡ Live Feed Configuration</div>
+      <div style="font-family:'Crimson Text',serif;font-size:0.8rem;color:var(--text3);margin-bottom:16px;line-height:1.6">
+        Paste the <strong style="color:var(--text2)">GitHub raw URL</strong> of your <code style="color:var(--green)">state.json</code> file.<br>
+        Example: <code style="color:var(--muted);font-size:0.72rem">https://raw.githubusercontent.com/you/sudor/main/state.json</code>
+      </div>
+      <input id="liveUrlInput" type="url"
+        style="width:100%;padding:8px 10px;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'Crimson Text',serif;font-size:0.85rem;margin-bottom:4px;outline:none"
+        placeholder="https://raw.githubusercontent.com/…/state.json"
+        value="${current}">
+      <div style="font-size:0.65rem;color:var(--text3);font-family:'Crimson Text',serif;margin-bottom:14px">
+        Poll interval: every ${POLL_INTERVAL} seconds. The map refreshes automatically when a new turn is detected.
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="applyLiveConfig(this.closest('div[style]'))"
+          style="flex:1;padding:8px;font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;background:rgba(200,168,64,0.1);border:1px solid var(--gold);color:var(--gold)">
+          ⚡ Enable Live Feed
+        </button>
+        <button onclick="disableLiveFeed();this.closest('div[style]').remove()"
+          style="flex:1;padding:8px;font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;background:transparent;border:1px solid var(--border2);color:var(--text3)">
+          Disable
+        </button>
+        <button onclick="this.closest('div[style]').remove()"
+          style="padding:8px 16px;font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;background:transparent;border:1px solid var(--border2);color:var(--text3)">
+          Cancel
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#liveUrlInput').focus();
+}
+
+function applyLiveConfig(overlay) {
+  const url = document.getElementById('liveUrlInput').value.trim();
+  if (!url) return;
+  LIVE_STATE_URL = url;
+  overlay.remove();
+  if (liveTimer) clearInterval(liveTimer);
+  liveEnabled = false;
+  liveLastTurn = -1;
+  if (sessionActive) initLiveFeed();
+}
+
+function disableLiveFeed() {
+  LIVE_STATE_URL = null;
+  liveEnabled = false;
+  if (liveTimer) { clearInterval(liveTimer); liveTimer = null; }
+  document.getElementById('liveFeed').classList.remove('active');
+  document.getElementById('liveSep').style.display = 'none';
+}
+const POLL_INTERVAL   = 60;   // seconds between checks
+let liveEnabled       = false;
+let liveTimer         = null;
+let liveCountdown     = 0;
+let liveLastTurn      = -1;
+let liveLastChecked   = null;
+let liveError         = false;
+
+function initLiveFeed() {
+  if (!LIVE_STATE_URL || !sessionActive) return;
+  liveEnabled = true;
+  document.getElementById('liveFeed').classList.add('active');
+  document.getElementById('liveSep').style.display = '';
+  document.getElementById('liveDot').classList.add('pulsing');
+  setLiveLabel('Connecting…', '');
+  pollLiveFeed();           // immediate first check
+  startCountdown();
+}
+
+async function pollLiveFeed() {
+  if (!liveEnabled || !LIVE_STATE_URL) return;
+  const dot = document.getElementById('liveDot');
+  dot.classList.add('pulsing');
+  setLiveLabel('Checking…', '');
+
+  try {
+    // Cache-bust so GitHub CDN doesn't return a stale response
+    const url = LIVE_STATE_URL + '?_=' + Date.now();
+    const resp = await fetch(url, {cache:'no-store'});
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+
+    liveError = false;
+    dot.classList.remove('error','stale');
+    dot.classList.add('pulsing');
+
+    const newTurn = data.globalState?.currentTurn ?? -1;
+    liveLastChecked = new Date();
+
+    if (liveLastTurn === -1) {
+      // First successful load — use this as our baseline
+      liveLastTurn = newTurn;
+      setLiveLabel('Live', formatLastChecked());
+    } else if (newTurn > liveLastTurn) {
+      // New turn detected — hot-reload state and redraw
+      liveLastTurn = newTurn;
+      await hotReloadState(data);
+      showNewTurnToast(newTurn);
+      setLiveLabel('Live', formatLastChecked());
+    } else {
+      setLiveLabel('Live', formatLastChecked());
+    }
+  } catch(e) {
+    liveError = true;
+    dot.classList.remove('pulsing');
+    dot.classList.add('error');
+    setLiveLabel('Unreachable', 'Check URL');
+    console.warn('Live feed error:', e);
+  }
+
+  liveCountdown = POLL_INTERVAL;
+}
+
+function startCountdown() {
+  if (liveTimer) clearInterval(liveTimer);
+  liveCountdown = POLL_INTERVAL;
+  liveTimer = setInterval(() => {
+    liveCountdown--;
+    updateCountdownDisplay();
+    if (liveCountdown <= 0) {
+      liveCountdown = POLL_INTERVAL;
+      pollLiveFeed();
+    }
+  }, 1000);
+}
+
+function updateCountdownDisplay() {
+  const el = document.getElementById('liveNextChk');
+  if (!el) return;
+  if (liveError) { el.textContent = ''; return; }
+  el.textContent = liveCountdown > 0 ? `↻ ${liveCountdown}s` : '↻ now';
+}
+
+function setLiveLabel(main, sub) {
+  const lbl = document.getElementById('liveLabel');
+  const sub_ = document.getElementById('liveSub');
+  if (lbl) lbl.textContent = main;
+  if (sub_) sub_.textContent = sub;
+}
+
+function formatLastChecked() {
+  if (!liveLastChecked) return '';
+  const h = liveLastChecked.getHours().toString().padStart(2,'0');
+  const m = liveLastChecked.getMinutes().toString().padStart(2,'0');
+  return `Updated ${h}:${m}`;
+}
+
+async function hotReloadState(newGameState) {
+  // Update game state data without reinitialising the entire map
+  // (pidMap, borders, pixel lists stay the same — only data changes)
+  gameState    = newGameState;
+  provinceData = newGameState.provinces || {};
+  regions      = newGameState.regions   || [];
+  setTurnBadge();
+  redrawMap();
+  // Close any open panel since province data may have changed
+  closePanel();
+  deselectAll();
+}
+
+function showNewTurnToast(turn) {
+  const gs = gameState.globalState || {};
+  const year = 1328 + Math.floor((turn-1)/4);
+  const seasons = ['Spring','Summer','Autumn','Winter'];
+  const season = seasons[(turn-1)%4];
+  const toast = document.getElementById('newTurnToast');
+  toast.textContent = `⚔ Turn ${turn} — ${season} ${year} A.E.`;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 5000);
+}
+
+// ── Manual refresh button ────────────────────────────────────────
+function manualRefresh() {
+  liveCountdown = 0;
+  pollLiveFeed();
+  startCountdown();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  EXPORT (save edited game state)
+// ═══════════════════════════════════════════════════════════════════
+function exportState() {
+  if (!gameState) return;
+  gameState.provinces = provinceData;
+  const blob = new Blob([JSON.stringify(gameState, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'game_state_exported.json';
+  a.click();
+}
+
+// ── Export Viewer ─────────────────────────────────────────────────
+// Generates a fully self-contained HTML file with the map image and
+// game state baked in. Anyone can open it without uploading anything.
+async function exportViewer() {
+  if (!mapImageData || !gameState) {
+    alert('Load a map and game state first.'); return;
+  }
+
+  // Show progress overlay
+  const prog = document.createElement('div');
+  prog.style.cssText = 'position:fixed;inset:0;z-index:900;background:rgba(4,6,4,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px';
+  prog.innerHTML = '<div style="font-family:Cinzel,serif;color:var(--gold);font-size:0.9rem;letter-spacing:0.12em">Baking Viewer…</div>' +
+    '<div id="bakeStatus" style="font-size:0.75rem;color:var(--text3);font-family:Crimson Text,serif">Encoding map image…</div>' +
+    '<div style="width:260px;height:3px;background:var(--border);border-radius:2px"><div id="bakeBar" style="height:100%;background:var(--gold);border-radius:2px;width:0%;transition:width 0.3s"></div></div>';
+  document.body.appendChild(prog);
+  const setStatus = (msg, pct) => {
+    prog.querySelector('#bakeStatus').textContent = msg;
+    prog.querySelector('#bakeBar').style.width = pct + '%';
+  };
+
+  await new Promise(r => setTimeout(r, 30)); // let UI paint
+
+  // Step 1: encode map image as PNG base64 data URL
+  setStatus('Encoding map image…', 10);
+  await new Promise(r => setTimeout(r, 10));
+  const offscreen = document.createElement('canvas');
+  offscreen.width = imgW; offscreen.height = imgH;
+  offscreen.getContext('2d').putImageData(mapImageData, 0, 0);
+  const mapDataUrl = offscreen.toDataURL('image/png');
+  setStatus('Serialising game state…', 40);
+  await new Promise(r => setTimeout(r, 10));
+
+  // Step 2: serialise game state (sync current provinceData edits in)
+  const stateSnapshot = JSON.parse(JSON.stringify(gameState));
+  stateSnapshot.provinces = provinceData;
+  const stateJson = JSON.stringify(stateSnapshot);
+  setStatus('Assembling HTML…', 65);
+  await new Promise(r => setTimeout(r, 10));
+
+  // Step 3: read this very HTML file's source and splice the data in
+  const resp = await fetch(window.location.href).catch(() => null);
+  let src;
+  if (resp && resp.ok) {
+    src = await resp.text();
+  } else {
+    // Fallback: reconstruct from DOM (works when opened as file://)
+    src = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  }
+
+  // Replace the two embed slots with the actual data
+  const escapedMap   = mapDataUrl.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+  const escapedState = stateJson.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+
+  // Replace sentinel lines — works whether src is the original template or a prior export
+  src = src.replace(
+    /const EMBEDDED_MAP_SRC[ ]*= [^;]+;/,
+    'const EMBEDDED_MAP_SRC   = `' + escapedMap + '`;'
+  );
+  src = src.replace(
+    /const EMBEDDED_GAME_STATE[ ]*= [^;\n]+[;\n]/,
+    'const EMBEDDED_GAME_STATE = ' + stateJson + ';\n'
+  );
+  // Preserve the LIVE_STATE_URL from the current session if it's been configured
+  if (LIVE_STATE_URL) {
+    src = src.replace(
+      /const LIVE_STATE_URL[ ]*= [^;]+;/,
+      'const LIVE_STATE_URL = ' + JSON.stringify(LIVE_STATE_URL) + ';'
+    );
+  }
+
+  setStatus('Downloading…', 90);
+  await new Promise(r => setTimeout(r, 10));
+
+  // Step 4: trigger download
+  const blob = new Blob([src], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const gs = gameState.globalState || {};
+  const turn = gs.currentTurn || 1;
+  const year = 1328 + Math.floor((turn-1)/4);
+  const seasons = ['Spring','Summer','Autumn','Winter'];
+  const season = seasons[(turn-1)%4];
+  a.download = `sudor_viewer_${season.toLowerCase()}_${year}.html`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+
+  setStatus('Done!', 100);
+  await new Promise(r => setTimeout(r, 600));
+  prog.remove();
+}
+</script>
+<div id="newTurnToast"></div>
+</body>
+</html>
