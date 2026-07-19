@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>⚔ Sudor Battle Simulator</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1a120a;--bg2:#241809;--bg3:#2f2010;--bg4:#3c2a15;
+  --parch:#e8d5a3;--parch2:#c9b183;
+  --bronze:#cd7f32;--bronze2:#8f5a24;--bronze3:#6b431b;
+  --copper:#b87333;--verdigris:#43b3ae;
+  --border:#5a4020;--border2:#43301a;
+  --red:#b8452e;--green:#7a9c4a;--blue:#5a8ab0;--garr:#9a6ab0;
+  --text:#e8d5a3;--text2:#b09668;--text3:#7a6440;
+}
+body{
+  background:var(--bg);color:var(--text);font-family:Georgia,'Times New Roman',serif;
+  height:100vh;overflow:hidden;display:flex;flex-direction:column;
+}
+#biomeBg{position:fixed;inset:0;z-index:-1;background-size:cover;background-position:center;image-rendering:pixelated}
+#biomeBg::after{content:'';position:absolute;inset:0;background:#1a120ab8}
+img.pix{image-rendering:pixelated;vertical-align:middle}
+/* HEADER */
+.hdr{
+  height:46px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 14px;gap:10px;
+  background:linear-gradient(180deg,#3c2a15,#241809);border-bottom:3px double var(--bronze2);box-shadow:0 2px 8px #000a;
+}
+.hdr-title{font-size:1rem;color:var(--bronze);letter-spacing:.16em;font-variant:small-caps;text-shadow:0 1px 0 #000;white-space:nowrap}
+.hdr-btns{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}
+.btn{
+  padding:5px 12px;cursor:pointer;font-size:.74rem;font-family:Georgia,serif;letter-spacing:.04em;
+  color:var(--parch);background:linear-gradient(180deg,#4a3418,#2f2010);
+  border:1px solid var(--bronze2);border-radius:3px;box-shadow:inset 0 1px 0 #ffffff14,0 1px 3px #0008;transition:all .12s;
+}
+.btn:hover{background:linear-gradient(180deg,#5a4020,#3c2a15);border-color:var(--bronze)}
+.btn.pri{color:#fff3d6;background:linear-gradient(180deg,#a8681f,#6b431b);border-color:var(--bronze);text-shadow:0 1px 1px #0009}
+.btn.pri:hover{background:linear-gradient(180deg,#cd7f32,#8f5a24)}
+.btn.sm{padding:2px 8px;font-size:.66rem}
+.btn.danger{background:linear-gradient(180deg,#4a2014,#2a1009);border-color:#8f3a24;color:#d88}
+/* battle bar */
+.bbar{display:flex;align-items:center;gap:6px;flex:1;max-width:430px;min-width:170px}
+.bbar-lbl{font-size:.6rem;white-space:nowrap;font-variant:small-caps}
+.bbar-track{flex:1;height:9px;background:#120c06;border:1px solid var(--bronze3);border-radius:5px;overflow:hidden;position:relative}
+.bbar-fill{height:100%;background:linear-gradient(90deg,#b8452e,#d08060);transition:width .3s}
+.bbar-track::after{content:'';position:absolute;left:50%;top:-1px;bottom:-1px;width:1px;background:var(--bronze3)}
+#subTurnLabel{font-size:.68rem;color:var(--parch2);font-variant:small-caps;padding:2px 9px;border:1px solid var(--bronze3);border-radius:3px;background:#1e1408;white-space:nowrap}
+/* LAYOUT */
+.body{flex:1;display:flex;min-height:0}
+.board-wrap{flex:1;display:flex;flex-direction:column;min-width:0;padding:6px 8px 2px}
+.side-panel{width:250px;flex-shrink:0;border-left:2px solid var(--bronze3);background:rgba(24,16,8,.92);display:flex;flex-direction:column;min-height:0}
+.sp-head{padding:5px 9px;font-size:.68rem;color:var(--bronze);font-variant:small-caps;letter-spacing:.1em;border-bottom:1px solid var(--border);flex-shrink:0}
+.sp-body{flex:1;overflow-y:auto;padding:6px;display:flex;flex-direction:column;gap:5px}
+.sp-body::-webkit-scrollbar{width:6px}.sp-body::-webkit-scrollbar-thumb{background:var(--bronze3);border-radius:3px}
+/* BOARD */
+.col-heads{display:grid;grid-template-columns:var(--boardcols);gap:0 3px;flex-shrink:0;margin-bottom:3px}
+.ch{
+  text-align:center;font-size:.56rem;font-variant:small-caps;letter-spacing:.08em;color:var(--text2);
+  padding:2px 1px;border-bottom:2px solid var(--border);white-space:nowrap;overflow:hidden;
+}
+.ch .in{color:#d0705a}.ch .out{color:#cd9f60}
+.ch.retreat-h{color:var(--verdigris)}
+.board{
+  flex:1;display:grid;grid-template-columns:var(--boardcols);grid-template-rows:repeat(3,1fr);
+  gap:3px;min-height:0;position:relative;
+}
+.tile{
+  background:linear-gradient(180deg,rgba(36,24,9,.82),rgba(28,18,8,.88));
+  border:1px solid var(--border2);border-radius:3px;overflow-y:auto;overflow-x:hidden;
+  padding:2px;display:flex;flex-direction:column;gap:2px;position:relative;min-height:0;
+  transition:box-shadow .12s,background .12s;
+}
+.tile::-webkit-scrollbar{width:4px}.tile::-webkit-scrollbar-thumb{background:var(--bronze3)}
+.tile.retreatA{background:linear-gradient(90deg,rgba(67,179,174,.10),rgba(28,18,8,.85));border-color:#43b3ae50}
+.tile.retreatB{background:linear-gradient(270deg,rgba(67,179,174,.10),rgba(28,18,8,.85));border-color:#43b3ae50}
+.tile.hl-move{box-shadow:inset 0 0 0 2px var(--green),0 0 8px #7a9c4a70;cursor:copy}
+.tile.hl-target{box-shadow:inset 0 0 0 2px var(--red),0 0 10px #b8452e80;cursor:crosshair}
+.tile.drag-hover{background:rgba(122,156,74,.14)}
+/* WALLS */
+.wallstrip{
+  border-radius:3px;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:repeating-linear-gradient(0deg,#241809,#241809 6px,#2c1e0c 6px,#2c1e0c 12px);
+  border:1px dashed var(--bronze3);cursor:pointer;overflow:hidden;grid-row:1/span 3;
+}
+.wallstrip.built{border:1px solid var(--copper);background:repeating-linear-gradient(0deg,#4a3418,#4a3418 7px,#3a2810 7px,#3a2810 14px)}
+.wallstrip.built.stone{background:repeating-linear-gradient(0deg,#4a4a48,#4a4a48 7px,#3a3a38 7px,#3a3a38 14px)}
+.wallstrip.destroyed{opacity:.35;border-style:dotted}
+.wallstrip.hl-target{box-shadow:inset 0 0 0 2px var(--red),0 0 10px #b8452e80}
+.wall-hp{position:absolute;left:2px;right:2px;bottom:3px;height:4px;background:#120c06;border:1px solid #000;border-radius:2px;overflow:hidden}
+.wall-hp>div{height:100%;background:var(--blue)}
+.wall-lbl{writing-mode:vertical-rl;font-size:.52rem;color:var(--parch2);font-variant:small-caps;letter-spacing:.1em;text-shadow:0 0 3px #000}
+/* CHIPS */
+.chip{
+  flex-shrink:0;background:linear-gradient(180deg,#2f2010,#281b0d);border:1px solid var(--bronze3);border-radius:3px;
+  padding:2px 4px;cursor:grab;font-size:.6rem;position:relative;
+}
+.chip.A{border-left:3px solid #c06a30}
+.chip.B{border-left:3px solid #5a8ab0}
+.chip.dead{opacity:.35;filter:grayscale(1)}
+.chip.repo{border-color:var(--verdigris)}
+.chip:hover{border-color:var(--bronze)}
+.chip.dragging{opacity:.4}
+.chip-top{display:flex;align-items:center;gap:3px;white-space:nowrap}
+.chip-name{flex:1;overflow:hidden;text-overflow:ellipsis;color:var(--parch);font-size:.6rem}
+.chip-mv{font-size:.52rem;color:var(--verdigris)}
+.chip-hp{height:3px;background:#120c06;border-radius:2px;overflow:hidden;margin-top:1px}
+.chip-hp>div{height:100%}
+/* EXPANDED CARD */
+.exp-card{
+  position:fixed;z-index:70;width:264px;max-height:420px;overflow-y:auto;
+  background:linear-gradient(180deg,#2f2010,#241809);border:1px solid var(--bronze);border-radius:4px;
+  box-shadow:0 8px 26px #000d;padding:4px;font-size:.66rem;
+}
+.exp-card::-webkit-scrollbar{width:5px}.exp-card::-webkit-scrollbar-thumb{background:var(--bronze3)}
+.uc-head{display:flex;align-items:center;gap:3px;margin-bottom:1px}
+.uc-name{flex:1;background:transparent;border:none;border-bottom:1px solid var(--bronze3);color:var(--parch);font-size:.7rem;font-family:Georgia,serif;padding:1px 2px;min-width:0}
+.uc-name:focus{outline:none;border-color:var(--bronze)}
+.uc-del{background:none;border:none;color:var(--text3);cursor:pointer;padding:0 2px;font-size:.72rem}
+.uc-del:hover{color:var(--red)}
+.uc-hp{font-size:.56rem;color:var(--text2);white-space:nowrap;display:inline-flex;align-items:center;gap:2px}
+.hp-bar{height:4px;background:#120c06;border:1px solid #000;border-radius:2px;overflow:hidden;margin-bottom:2px}
+.hp-fill{height:100%;transition:width .25s}
+.uc-repo{margin-top:1px;font-size:.54rem;color:var(--verdigris);padding:1px 4px;background:#43b3ae12;border-radius:2px;border-left:2px solid var(--verdigris)}
+.eq-icons{display:flex;gap:4px;justify-content:flex-start;margin:2px 0;align-items:center}
+.eq-btn{width:24px;height:24px;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#241809,#1a1006);border:1px solid var(--border);border-radius:3px;transition:border-color .1s}
+.eq-btn:hover{border-color:var(--bronze)}
+.eq-btn img{width:18px;height:18px;image-rendering:pixelated}
+.eq-btn.disabled{opacity:.4;cursor:not-allowed}
+.eq-bfx{display:flex;flex-direction:column;margin-left:3px}
+.eq-bfx-chip{display:inline-flex;align-items:center;gap:1px;font-size:.52rem;color:var(--text2);white-space:nowrap}
+.eq-bfx-chip img{width:10px;height:10px;image-rendering:pixelated}
+.eq-sel{background:#1e1408;border:1px solid var(--border);color:var(--parch);font-size:.62rem;font-family:Georgia,serif;padding:1px 2px;border-radius:2px;cursor:pointer}
+.uc-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0 3px;font-size:.55rem;color:var(--text2);margin-top:2px;border-top:1px solid var(--bronze3);padding-top:2px;line-height:1.35}
+.st{display:flex;align-items:center;gap:2px;white-space:nowrap}
+.st img{width:10px;height:10px;image-rendering:pixelated;flex-shrink:0}
+.sv{color:var(--parch)}
+.dsm{font-size:.5rem;margin-left:1px}.dsm.pos{color:var(--green)}.dsm.neg{color:#d07050}
+.uc-meta{display:flex;justify-content:space-between;font-size:.54rem;color:var(--text2);margin-top:1px;padding-top:1px;border-top:1px dotted var(--border);gap:4px}
+.dmg-preview{margin-top:2px;font-size:.56rem;color:var(--text2);padding:1px 4px;line-height:1.4;background:#170f07;border-radius:2px;border-left:2px solid var(--bronze2)}
+.eq-deltas{display:flex;flex-wrap:wrap;gap:2px 5px;font-size:.55rem;color:var(--text2);padding:1px 3px;line-height:1.3}
+.eqd{display:inline-flex;align-items:center;gap:1px;white-space:nowrap}
+.eqd img{width:10px;height:10px;image-rendering:pixelated}
+.eqd .pos{color:var(--green)}.eqd .neg{color:#d07050}
+/* equip popup */
+.equip-menu{position:fixed;z-index:60;min-width:180px;max-height:320px;overflow-y:auto;background:linear-gradient(180deg,#2f2010,#241809);
+  border:1px solid var(--bronze);border-radius:4px;box-shadow:0 6px 20px #000d;padding:3px 0}
+.equip-menu::-webkit-scrollbar{width:6px}.equip-menu::-webkit-scrollbar-thumb{background:var(--bronze3)}
+.equip-menu-head{padding:2px 9px 4px;font-size:.6rem;color:var(--bronze);font-variant:small-caps;letter-spacing:.1em;border-bottom:1px solid var(--bronze3);margin-bottom:2px}
+.equip-menu-item{display:flex;align-items:center;gap:6px;padding:2px 9px;font-size:.66rem;cursor:pointer;color:var(--parch)}
+.equip-menu-item:hover{background:#cd7f3226}
+.equip-menu-item img{width:15px;height:15px;image-rendering:pixelated;flex-shrink:0}
+.equip-menu-item.sel{color:var(--bronze);font-weight:700}
+/* buildings */
+.bldg-card{background:linear-gradient(180deg,#2a1c12,#241708);border:1px solid var(--copper);border-radius:4px;padding:4px;font-size:.66rem}
+.bldg-card.destroyed{opacity:.35;filter:grayscale(1)}
+.bc-head{display:flex;align-items:center;gap:4px;margin-bottom:2px;cursor:pointer;user-select:none}
+.bc-name{flex:1;color:var(--parch);font-size:.68rem}
+.bc-lvl{color:var(--text3);font-size:.56rem;white-space:nowrap}
+.bc-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:.7rem}
+.bc-del:hover{color:var(--red)}
+.bc-stats{display:grid;grid-template-columns:1fr 1fr;gap:1px 3px;font-size:.56rem;color:var(--text2);margin-top:3px;border-top:1px solid var(--bronze3);padding-top:2px}
+.garr-slot{border:1px solid #9a6ab070;border-radius:3px;padding:2px;background:#9a6ab010;margin-top:3px}
+.garr-slot.empty{border-style:dashed;text-align:center;font-size:.56rem;color:var(--text3);font-style:italic;padding:6px 3px}
+.garr-slot-lbl{display:flex;align-items:center;gap:3px;font-size:.54rem;color:var(--garr);font-variant:small-caps;margin-bottom:2px}
+.bldg-slots.drag-hover{background:#cd7f3218;box-shadow:inset 0 0 0 1px var(--bronze);border-radius:3px}
+/* bottom */
+.bottom{flex-shrink:0;background:linear-gradient(180deg,#241809,#1a120a);border-top:3px double var(--bronze2)}
+.ctl-bar{padding:5px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.ctl-lbl{font-size:.66rem;color:var(--bronze);font-variant:small-caps;letter-spacing:.06em;white-space:nowrap}
+.log{height:120px;display:flex;flex-direction:column}
+.log-head{padding:2px 12px;border-bottom:1px solid var(--border);font-size:.66rem;color:var(--bronze);font-variant:small-caps;letter-spacing:.1em;display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.log-body{flex:1;overflow-y:auto;padding:4px 12px;font-size:.66rem;line-height:1.5}
+.log-body::-webkit-scrollbar{width:6px}.log-body::-webkit-scrollbar-thumb{background:var(--bronze3)}
+.lt{color:var(--bronze);font-weight:700;margin-top:3px;display:block}
+.ldmg{color:#d0705a}.lhit{color:#cd9f60}.lwin{color:var(--green);font-weight:700}
+.linfo{color:var(--text3);font-style:italic}.lmove{color:var(--blue)}
+</style>
+</head>
+<body>
+<div id="biomeBg"></div>
+
+<div class="hdr">
+  <div class="hdr-title">⚔ Sudor Battle Simulator</div>
+  <div class="bbar" id="battleBar" title="Predicted next-subturn damage vs enemy total HP">
+    <span class="bbar-lbl" id="bbarA" style="color:#d08060">⚔ —</span>
+    <div class="bbar-track"><div class="bbar-fill" id="bbarFill" style="width:50%"></div></div>
+    <span class="bbar-lbl" id="bbarB" style="color:#7aa0c0">— 🛡</span>
+    <span class="bbar-lbl" id="bbarAdv" style="color:var(--bronze)"></span>
+  </div>
+  <div class="hdr-btns">
+    <span id="subTurnLabel">Setup</span>
+    <button class="btn" id="deltaToggleBtn" onclick="toggleDeltas()" title="Show/hide equipment stat deltas">🔍</button>
+    <button class="btn" onclick="clearFallen()" title="Remove all dead units">🧹</button>
+    <button class="btn" onclick="resetBattle()">↺ Reset</button>
+    <button class="btn pri" onclick="stepBattle()">▶ Step</button>
+    <button class="btn pri" onclick="runAll()">⚡ Run All</button>
+  </div>
+</div>
+
+<div class="body">
+  <div class="board-wrap">
+    <div class="col-heads" id="colHeads"></div>
+    <div class="board" id="board"></div>
+  </div>
+  <div class="side-panel">
+    <div class="sp-head">🏰 Defender Buildings & Garrison</div>
+    <div class="sp-body" id="bldgList"></div>
+  </div>
+</div>
+
+<div class="bottom">
+  <div class="ctl-bar">
+    <span class="ctl-lbl">🌍 Biome</span>
+    <select id="biomeSel" class="eq-sel" style="width:118px" onchange="setBiome(this.value)"></select>
+    <span class="ctl-lbl">👤 Unit</span>
+    <button class="btn sm" onclick="addUnit('A')">+ Attacker</button>
+    <button class="btn sm" onclick="addUnit('B')">+ Defender</button>
+    <span class="ctl-lbl">🧱 Wall</span>
+    <select id="wallB" class="eq-sel" style="width:104px">
+      <option value="6">Line 1 (inner)</option><option value="5">Line 2 (mid)</option><option value="4">Line 3 (outer)</option>
+    </select>
+    <select id="wallT" class="eq-sel" style="width:100px"><option>Wooden Wall</option><option>Stone Wall</option></select>
+    <select id="wallL" class="eq-sel" style="width:56px"><option value="0">Lv1</option><option value="1">Lv2</option><option value="2">Lv3</option></select>
+    <button class="btn sm" onclick="buildWall()">Build</button>
+    <span class="ctl-lbl">🏰 Building</span>
+    <select id="bldgSel" class="eq-sel" style="width:104px"></select>
+    <select id="bldgLvl" class="eq-sel" style="width:56px"><option value="0">Lv1</option><option value="1">Lv2</option><option value="2">Lv3</option></select>
+    <button class="btn sm" onclick="addBuilding()">Add</button>
+  </div>
+  <div class="log">
+    <div class="log-head"><span>Battle Chronicle</span><button class="btn sm" onclick="clearLog()">Clear</button></div>
+    <div class="log-body" id="logBody"><div class="linfo">Muster units. Attacker deploys on the left, defender on the right. Drag chips to move; click a chip to inspect.</div></div>
+  </div>
+</div>
+
+<script>
+const SPR = '../SudorSprites/';
+const SI  = '../SudorSprites/StatIcons/';
+
+// Stat icons
+const STAT_ICON = {
+  hp:        SI+'Hitpoint.png',
+  heavyAtk:  SI+'HeavyATK.png',  heavyDef:  SI+'HeavyDEF.png',  heavyDmg:  SI+'HeavyDMG.png',
+  meleeAtk:  SI+'MeleeATK.png',  meleeDef:  SI+'MeleeDEF.png',  meleeDmg:  SI+'MeleeDMG.png',
+  pierceAtk: SI+'PierceATK.png', pierceDef: SI+'PierceDEF.png', pierceDmg: SI+'PierceDMG.png',
+  size:      SI+'Size.png',
+  range:     SI+'RangeATK.png',
+  carry:     SI+'Carry.png',
+};
+const STAT_LABEL = {
+  hp:'HP', heavyAtk:'Heavy ATK', heavyDef:'Heavy DEF', heavyDmg:'Heavy DMG',
+  meleeAtk:'Melee ATK', meleeDef:'Melee DEF', meleeDmg:'Melee DMG',
+  pierceAtk:'Pierce ATK', pierceDef:'Pierce DEF', pierceDmg:'Pierce DMG',
+  size:'Size', range:'Range', carry:'Carry',
+};
+function sIcon(key, sz=12){
+  const src = STAT_ICON[key] || SI+'EmptyStat.png';
+  return `<img class="pix" src="${src}" title="${STAT_LABEL[key]||key}" style="width:${sz}px;height:${sz}px">`;
+}
+
+// Equipment sprites available in ../SudorSprites/ (fallback → Empty.png)
+const EQUIP_SPRITE_FILES = new Set([
+  'Bronze Armor','Bronze Mace','Bronze Spear','Bronze Sword','Chainmail Armor',
+  'Copper Armor','Copper Mace','Copper Spear','Copper Sword','Horse',
+  'Iron Armor','Iron Mace','Iron Plate Armor','Iron Spear','Iron Sword',
+  'Powderlance','Steel Armor','Steel Mace','Steel Plate Armor','Steel Spear','Steel Sword',
+  'Stone Mace','Stone Spear','Stone Sword','Wood Mace','Wood Spear','Wood Sword',
+  'Willigoot','Bonbird',
+  'WoodLamellar','LeatherLamellar','CopperLamellar','BronzeLamellar','IronLamellar','SteelLamellar','Gambeson',
+  'Arquebus','Musket','Powderlance','HandCannon','Sling','Longbow','Bow','Crossbow',
+  'Trebuchet','Catapult','Ballista','Cannon',
+]);
+// Game names → sprite file names where they differ
+const EQUIP_SPRITE_ALIAS = {
+  'Wooden Sword':'Wood Sword', 'Wooden Mace':'Wood Mace', 'Wooden Spear':'Wood Spear',
+  'Wood Lamellar':'WoodLamellar', 'Leather Lamellar':'LeatherLamellar', 'Copper Lamellar':'CopperLamellar',
+  'Bronze Lamellar':'BronzeLamellar', 'Iron Lamellar':'IronLamellar', 'Steel Lamellar':'SteelLamellar',
+  'Arquebuse':'Arquebus', 'Hand Cannon':'HandCannon',
+};
+// Slot chooser icons (idle / hover)
+const SLOT_ICON = {
+  weapon: { idle: SPR+'Weapon.png', hover: SPR+'WeaponHover.png' },
+  armor:  { idle: SPR+'Armor.png',  hover: SPR+'ArmorHover.png'  },
+  mount:  { idle: SPR+'Mount.png',  hover: SPR+'MountHover.png'  },
+};
+function equipSprite(name){
+  if(name==='(none)') return SPR+'NoEquip.png';
+  const file = EQUIP_SPRITE_ALIAS[name] || name;
+  return EQUIP_SPRITE_FILES.has(file) ? SPR+file+'.png' : SPR+'Empty.png';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════════════
+const BASE = {
+  hp:10, heavyAtk:1,heavyDef:1,heavyDmg:1,
+  meleeAtk:2,meleeDef:2,meleeDmg:1,
+  pierceAtk:2,pierceDef:2,pierceDmg:1, size:1
+};
+
+// Weapons: stat deltas + position% (front/mid/support) + range
+// range: 0-1=enemy front only, 2=front+mid, 3+=any enemy position
+const WEAPON_DATA = {
+  '(none)':        {r:[1,0,0,0,0]},
+  'Wooden Sword':  {heavyDmg:1,heavyAtk:1,meleeAtk:2,meleeDmg:1.5,pierceAtk:1.5,pierceDmg:1,size:.1,r:[1,0.03,0,0,0]},
+  'Stone Sword':   {heavyDmg:1.5,heavyAtk:1.5,meleeAtk:3,meleeDmg:2,pierceAtk:2,pierceDmg:1.5,size:.1,r:[1,0,0,0,0]},
+  'Copper Sword':  {heavyDmg:2,heavyAtk:2,meleeAtk:3.5,meleeDmg:2.5,pierceAtk:2.5,pierceDmg:2,size:.1,r:[1,0,0,0,0]},
+  'Bronze Sword':  {heavyDmg:2.5,heavyAtk:2.5,meleeAtk:4,meleeDmg:3,pierceAtk:3,pierceDmg:2.5,size:.1,r:[1,0,0,0,0]},
+  'Iron Sword':    {heavyDmg:3,heavyAtk:3,meleeAtk:4.5,meleeDmg:3.5,pierceAtk:3.5,pierceDmg:3,size:.1,r:[1,0,0,0,0]},
+  'Steel Sword':   {heavyDmg:3.5,heavyAtk:3.5,meleeAtk:5,meleeDmg:4,pierceAtk:4,pierceDmg:3.5,size:.1,r:[1,0,0,0,0]},
+  'Wooden Mace':   {heavyDmg:1.5,heavyAtk:1.5,meleeAtk:1,meleeDmg:1.5,pierceAtk:.5,pierceDmg:.5,size:.1,r:[1,0,0,0,0]},
+  'Stone Mace':    {heavyDmg:2,heavyAtk:2,meleeAtk:1.5,meleeDmg:2,pierceAtk:1,pierceDmg:1,size:.1,r:[1,0,0,0,0]},
+  'Copper Mace':   {heavyDmg:2.5,heavyAtk:2.5,meleeAtk:2.5,meleeDmg:2.5,pierceAtk:1.5,pierceDmg:1.5,size:.1,r:[1,0,0,0,0]},
+  'Bronze Mace':   {heavyDmg:3,heavyAtk:3,meleeAtk:2.5,meleeDmg:3,pierceAtk:2,pierceDmg:2,size:.1,r:[1,0,0,0,0]},
+  'Iron Mace':     {heavyDmg:3.5,heavyAtk:4,meleeAtk:3,meleeDmg:3.5,pierceAtk:2.5,pierceDmg:2.5,size:.1,r:[1,0,0,0,0]},
+  'Steel Mace':    {heavyDmg:4,heavyAtk:5,meleeAtk:3.5,meleeDmg:4,pierceAtk:3,pierceDmg:3,size:.1,r:[1,0,0,0,0]},
+  'Wooden Spear':  {heavyDmg:.5,heavyAtk:.5,meleeAtk:1,meleeDmg:1,pierceAtk:2,pierceDmg:2,size:.1,r:[1,0.3,0,0,0]},
+  'Stone Spear':   {heavyDmg:1,heavyAtk:1,meleeAtk:1.5,meleeDmg:1.5,pierceAtk:2.5,pierceDmg:2.5,size:.1,r:[1,0.3,0,0,0]},
+  'Copper Spear':  {heavyDmg:1.5,heavyAtk:1.5,meleeAtk:2.5,meleeDmg:1.5,pierceAtk:3.5,pierceDmg:3,size:.1,r:[1,0.3,0,0,0]},
+  'Bronze Spear':  {heavyDmg:2,heavyAtk:1.5,meleeAtk:3,meleeDmg:2,pierceAtk:4,pierceDmg:3.5,size:.1,r:[1,0.3,0,0,0]},
+  'Iron Spear':    {heavyDmg:2.5,heavyAtk:2,meleeAtk:3.5,meleeDmg:2.5,pierceAtk:4.5,pierceDmg:4,size:.1,r:[1,0.3,0,0,0]},
+  'Steel Spear':   {heavyDmg:3,heavyAtk:2.5,meleeAtk:4,meleeDmg:4,pierceAtk:5,pierceDmg:4.5,size:.1,r:[1,0.3,0,0,0]},
+  'Wooden Javelin':{heavyDmg:.5,heavyAtk:.5,meleeAtk:.5,meleeDmg:.5,pierceAtk:2.5,pierceDmg:2.5,size:.1,r:[0.75,1,0.5,0.2,0]},
+  'Stone Javelin': {heavyDmg:1,heavyAtk:.5,meleeAtk:1,meleeDmg:1,pierceAtk:3,pierceDmg:3,size:.1,r:[0.75,1,0.5,0.1,0]},
+  'Copper Javelin':{heavyDmg:1.5,heavyAtk:1,meleeAtk:1.5,meleeDmg:1.5,pierceAtk:3.5,pierceDmg:3.5,size:.1,r:[0.75,1,0.5,0.1,0]},
+  'Bronze Javelin':{heavyDmg:2,heavyAtk:1,meleeAtk:2,meleeDmg:2,pierceAtk:4,pierceDmg:4,size:.1,r:[0.75,1,0.5,0.1,0]},
+  'Iron Javelin':  {heavyDmg:2.5,heavyAtk:1.5,meleeAtk:2.5,meleeDmg:2.5,pierceAtk:4.5,pierceDmg:4.5,size:.1,r:[0.75,1,0.5,0.1,0]},
+  'Steel Javelin': {heavyDmg:3,heavyAtk:2,meleeAtk:3,meleeDmg:3,pierceAtk:5,pierceDmg:5,size:.1,r:[0.75,1,0.5,0.1,0]},
+  'Sling':         {heavyDmg:1.5,heavyAtk:.5,meleeAtk:2,meleeDmg:.5,pierceAtk:4,pierceDmg:3,size:.1,r:[0.3,1,0.5,0,0]},
+  'Bow':           {heavyDmg:1,heavyAtk:.5,meleeAtk:1.5,meleeDmg:1,pierceAtk:6,pierceDmg:4,size:.1,r:[0.2,1,0.5,0,0]},
+  'Longbow':       {heavyDmg:1.5,heavyAtk:1,meleeAtk:1,meleeDmg:1,pierceAtk:7,pierceDmg:5,size:.15,r:[0.2,0.5,1,0.5,0]},
+  'Crossbow':      {heavyDmg:2,heavyAtk:1.5,meleeAtk:1,meleeDmg:1.5,pierceAtk:8.5,pierceDmg:6.5,size:.15,r:[0.2,0.75,1,0,0]},
+  'Powderlance':   {heavyDmg:2.5,heavyAtk:3,meleeAtk:1.5,meleeDmg:1.5,pierceAtk:10,pierceDmg:7,size:.2,r:[0.75,1,0,0,0]},
+  'Hand Cannon':   {heavyDmg:3,heavyAtk:3.5,meleeAtk:1.5,meleeDmg:1.5,pierceAtk:11,pierceDmg:7.5,size:.25,r:[0.75,1,0,0,0]},
+  'Arquebuse':     {heavyDmg:3.5,heavyAtk:4,meleeAtk:2,meleeDmg:2,pierceAtk:13,pierceDmg:8.5,size:.25,r:[0.5,1,0.5,0,0]},
+  'Musket':        {heavyDmg:4,heavyAtk:5,meleeAtk:3,meleeDmg:2,pierceAtk:14,pierceDmg:10.5,size:.3,r:[0.5,1,0.5,0,0]},
+  'Bombard':       {heavyDmg:17,heavyAtk:7,heavyDef:1,meleeAtk:1,meleeDef:2,meleeDmg:2,pierceAtk:2,pierceDef:2.5,pierceDmg:3,size:2,r:[0.25,0.5,1,0.25,0]},
+  'Mortar':        {heavyDmg:13,heavyAtk:17,heavyDef:1,meleeAtk:1,meleeDef:2.5,meleeDmg:2,pierceAtk:3,pierceDef:2,pierceDmg:4,size:2,r:[0,0,0.2,1,1]},
+  'Culverin':      {heavyDmg:15,heavyAtk:14,heavyDef:1,meleeAtk:1,meleeDef:3,meleeDmg:2,pierceAtk:4,pierceDef:1,pierceDmg:3,size:2,r:[0.25,0.5,1,0.5,0]},
+  'Cannon':        {heavyDmg:19,heavyAtk:20,heavyDef:1,meleeAtk:1,meleeDef:2.5,meleeDmg:2,pierceAtk:3,pierceDef:2,pierceDmg:3.5,size:2,r:[0.1,0.25,0.4,1,1]},
+  'Catapult':      {heavyDmg:11,heavyAtk:10,heavyDef:1,meleeAtk:1,meleeDef:2,meleeDmg:2,pierceAtk:3,pierceDef:1.5,pierceDmg:3,size:2,r:[0,0.2,0.5,1,1]},
+  'Ballista':      {heavyDmg:9,heavyAtk:7,heavyDef:1,meleeAtk:1,meleeDef:1.5,meleeDmg:2,pierceAtk:10,pierceDef:1,pierceDmg:9,size:2,r:[0.25,0.5,1,0.5,0]},
+  'Trebuchet':     {heavyDmg:12,heavyAtk:15,heavyDef:1,meleeAtk:1,meleeDef:2,meleeDmg:2,pierceAtk:3.5,pierceDef:2,pierceDmg:3,size:2,r:[0,0.1,0.5,1,1]},
+  'Battering Ram': {heavyDmg:7,heavyAtk:9,heavyDef:3,meleeAtk:1,meleeDef:3.5,meleeDmg:2,pierceDef:3,size:3,r:[1,0,0,0,0]},
+};
+const WEAPONS = Object.keys(WEAPON_DATA);
+
+const ARMOR_DATA = {
+  '(none)':            {},
+  'Copper Armor':      {heavyDef:2,meleeDef:3,pierceDef:3,size:.3},
+  'Bronze Armor':      {heavyDef:3,meleeDef:5,pierceDef:4,size:.4},
+  'Iron Armor':        {heavyDef:4,meleeDef:5,pierceDef:5,size:.5},
+  'Chainmail Armor':   {heavyDef:3,meleeDef:4,pierceDef:2,size:.3},
+  'Steel Armor':       {heavyDef:5,meleeDef:6,pierceDef:5.5,size:.4},
+  'Steel Plate Armor': {heavyDef:6,meleeDef:7.5,pierceDef:7,size:.5},
+  'Iron Plate Armor':  {heavyDef:5,meleeDef:6.5,pierceDef:6,size:.5},
+  'Wood Lamellar':     {heavyDef:.5,meleeDef:2,pierceDef:.5,size:.2},
+  'Leather Lamellar':  {heavyDef:1,meleeDef:2,pierceDef:1,size:.15},
+  'Copper Lamellar':   {heavyDef:1.5,meleeDef:2.5,pierceDef:2,size:.2},
+  'Bronze Lamellar':   {heavyDef:2,meleeDef:3,pierceDef:2.5,size:.3},
+  'Iron Lamellar':     {heavyDef:2.5,meleeDef:3.5,pierceDef:3,size:.3},
+  'Steel Lamellar':    {heavyDef:3,meleeDef:4,pierceDef:3.5,size:.3},
+  'Gambeson':          {heavyDef:1,meleeDef:1.5,pierceDef:1.5,size:.15},
+};
+const ARMORS = Object.keys(ARMOR_DATA);
+
+const MOUNT_DATA = {
+  '(none)':     {},
+  'Horse':      {heavyDef:-1,meleeAtk:2,meleeDef:-1,meleeDmg:1,pierceAtk:1,pierceDef:-1,size:1},
+  'Camel':      {heavyDef:-1,meleeAtk:2,meleeDef:-1,meleeDmg:1,pierceAtk:1,pierceDef:1,size:1},
+  'Elephant':   {heavyDmg:2,heavyAtk:1,heavyDef:2,meleeAtk:1,meleeDmg:2,pierceAtk:-1,size:2},
+  'Willigoot':  {heavyDmg:1,heavyAtk:1,heavyDef:1,meleeAtk:2,pierceAtk:2,pierceDmg:1,size:2},
+  'Bonbird':    {heavyDef:-1,meleeAtk:2,meleeDef:-1,meleeDmg:1,pierceAtk:-1,pierceDef:1,size:1},
+  'Siege Tower':{heavyAtk:2,heavyDef:5,meleeAtk:1,meleeDef:2,meleeDmg:2,pierceDef:2.5,size:3},
+};
+const MOUNTS = Object.keys(MOUNT_DATA);
+
+// ── Biome effects ───────────────────────────────────────────────
+// def: +20% DEF · atk: +20% ATK · deb: −25% ATK & DEF · atkDeb: −25% ATK only
+const BIOME_FX = {
+  // Metal armors overheat in hot/humid biomes: −25% ATK
+  "Copper Armor":      {atkDeb:["hotdesert","desert","rainforest","xericforest","hotdesertscrub","thornwoodland"]},
+  "Bronze Armor":      {atkDeb:["hotdesert","desert","rainforest","xericforest","hotdesertscrub","thornwoodland"]},
+  "Iron Armor":        {atkDeb:["hotdesert","desert","rainforest","xericforest","hotdesertscrub","thornwoodland"]},
+  "Steel Armor":       {atkDeb:["hotdesert","desert","rainforest","xericforest","hotdesertscrub","thornwoodland"]},
+  "Iron Plate Armor":  {atkDeb:["hotdesert","desert","rainforest","xericforest","hotdesertscrub","thornwoodland"]},
+  "Steel Plate Armor": {atkDeb:["hotdesert","desert","rainforest","xericforest","hotdesertscrub","thornwoodland"]},
+  "Wood Lamellar": {def:["dryforest", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"]},
+  "Leather Lamellar": {def:["chaparral", "dryscrub", "grassland", "hotdesertscrub", "savanna", "steppe", "thornwoodland"]},
+  "Gambeson": {def:["chaparral", "grassland", "savanna", "thornwoodland", "woodland", "xericforest"]},
+  "Copper Sword": {atk:["chaparral", "dryforest", "drysavanna", "moistforest", "savanna", "thornwoodland", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Bronze Sword": {atk:["chaparral", "dryforest", "drysavanna", "moistforest", "savanna", "thornwoodland", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Iron Sword": {atk:["chaparral", "dryforest", "drysavanna", "moistforest", "savanna", "thornwoodland", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Steel Sword": {atk:["chaparral", "dryforest", "drysavanna", "moistforest", "savanna", "thornwoodland", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Stone Sword": {atk:["chaparral", "dryforest", "drysavanna", "moistforest", "savanna", "thornwoodland", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Wooden Sword": {atk:["chaparral", "dryforest", "drysavanna", "moistforest", "savanna", "thornwoodland", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Copper Spear": {atk:["dryforest", "drysavanna", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Bronze Spear": {atk:["dryforest", "drysavanna", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Iron Spear": {atk:["dryforest", "drysavanna", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Steel Spear": {atk:["dryforest", "drysavanna", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Stone Spear": {atk:["dryforest", "drysavanna", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Wooden Spear": {atk:["dryforest", "drysavanna", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"]},
+  "Wooden Mace": {atk:["chaparral", "dryforest", "drysavanna", "hotdesertscrub", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "grassland", "hotdesert", "steppe"]},
+  "Stone Mace": {atk:["chaparral", "dryforest", "drysavanna", "hotdesertscrub", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "grassland", "hotdesert", "steppe"]},
+  "Bronze Mace": {atk:["chaparral", "dryforest", "drysavanna", "hotdesertscrub", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "grassland", "hotdesert", "steppe"]},
+  "Iron Mace": {atk:["chaparral", "dryforest", "drysavanna", "hotdesertscrub", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "grassland", "hotdesert", "steppe"]},
+  "Steel Mace": {atk:["chaparral", "dryforest", "drysavanna", "hotdesertscrub", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "grassland", "hotdesert", "steppe"]},
+  "Copper Mace": {atk:["chaparral", "dryforest", "drysavanna", "hotdesertscrub", "moistforest", "rainforest", "savanna", "soakedforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "grassland", "hotdesert", "steppe"]},
+  "Wooden Javelin": {atk:["chaparral", "colddesert", "desert", "drysavanna", "drytundra", "frozendesert", "grassland", "hotdesert", "moisttundra", "savanna", "steppe", "wettundra"],deb:["dryforest", "rainforest", "soakedforest", "wetforest"]},
+  "Stone Javelin": {atk:["chaparral", "colddesert", "desert", "drysavanna", "drytundra", "frozendesert", "grassland", "hotdesert", "moisttundra", "savanna", "steppe", "wettundra"],deb:["dryforest", "rainforest", "soakedforest", "wetforest"]},
+  "Copper Javelin": {atk:["chaparral", "colddesert", "desert", "drysavanna", "drytundra", "frozendesert", "grassland", "hotdesert", "moisttundra", "savanna", "steppe", "wettundra"],deb:["dryforest", "rainforest", "soakedforest", "wetforest"]},
+  "Bronze Javelin": {atk:["chaparral", "colddesert", "desert", "drysavanna", "drytundra", "frozendesert", "grassland", "hotdesert", "moisttundra", "savanna", "steppe", "wettundra"],deb:["dryforest", "rainforest", "soakedforest", "wetforest"]},
+  "Iron Javelin": {atk:["chaparral", "colddesert", "desert", "drysavanna", "drytundra", "frozendesert", "grassland", "hotdesert", "moisttundra", "savanna", "steppe", "wettundra"],deb:["dryforest", "rainforest", "soakedforest", "wetforest"]},
+  "Steel Javelin": {atk:["chaparral", "colddesert", "desert", "drysavanna", "drytundra", "frozendesert", "grassland", "hotdesert", "moisttundra", "savanna", "steppe", "wettundra"],deb:["dryforest", "rainforest", "soakedforest", "wetforest"]},
+  "Sling": {atk:["chaparral", "desert", "drysavanna", "dryscrub", "frozendesert", "grassland", "hotdesert", "hotdesertscrub", "moisttundra", "savanna", "steppe", "thornwoodland", "xericforest"],deb:["dryforest", "rainforest", "soakedforest", "wetforest"]},
+  "Bow": {atk:["chaparral", "drysavanna", "moistforest", "raintundra", "savanna", "thornwoodland", "wetforest", "wettundra", "woodland", "xericforest"],deb:["dryforest", "rainforest", "soakedforest", "wetforest"]},
+  "Longbow": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Crossbow": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Powderlance": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Hand Cannon": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Arquebuse": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Musket": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Bombard": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Mortar": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Culverin": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Cannon": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Catapult": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Ballista": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Trebuchet": {atk:["colddesert", "desert", "dryscrub", "drytundra", "grassland", "hotdesert", "steppe"],deb:["dryforest", "rainforest", "soakedforest", "wetforest", "xericforest"]},
+  "Elephant": {def:["dryforest", "moistforest", "rainforest", "wetforest", "woodland", "xericforest"],deb:["colddesert", "drytundra", "hotdesert", "moistforest", "moisttundra", "rainforest", "raintundra", "soakedforest", "wetforest", "wettundra"]},
+  "Horse": {def:["drysavanna", "dryscrub", "grassland", "hotdesertscrub", "savanna", "steppe"],deb:["desert", "dryforest", "hotdesert", "moistforest", "rainforest", "soakedforest", "wetforest", "woodland", "xericforest"]},
+  "Camel": {def:["chaparral", "colddesert", "desert", "drytundra", "hotdesert", "hotdesertscrub", "steppe"],deb:["dryforest", "moistforest", "moisttundra", "rainforest", "raintundra", "soakedforest", "wetforest", "wettundra", "woodland"]},
+  "Willigoot": {def:["colddesert", "frozendesert", "moisttundra", "raintundra", "wettundra"],deb:["chaparral", "desert", "dryforest", "drysavanna", "hotdesert", "hotdesertscrub", "moistforest", "rainforest", "savanna", "soakedforest", "thornwoodland", "wetforest", "woodland", "xericforest"]},
+  "Bonbird": {def:["chaparral", "dryforest", "drysavanna", "grassland", "savanna", "steppe", "thornwoodland", "woodland", "xericforest"],deb:["colddesert", "desert", "drytundra", "hotdesert", "moisttundra", "rainforest", "raintundra", "soakedforest", "wettundra"]},
+};
+const BIOME_IMAGES = {
+  'AbyssalOcean':'AbyssalOcean.jpg','Chaparral':'Chaparral.png','ColdDesert':'ColdDesert.jpg',
+  'DeepOcean':'DeepOcean.jpg','Desert':'Desert.png','DryForest':'DryForest.jpg','DrySavanna':'DrySavanna.jpg',
+  'DryScrub':'DryScrub.jpg','DryTundra':'DryTundra.jpg','FrozenDesert':'FrozenDesert.jpg','Grassland':'Grassland.jpg',
+  'HotDesert':'HotDesert.jpg','HotDesertScrub':'HotDesertScrub.jpg','IceCap':'IceCap.jpg','Lake':'Lake.png',
+  'MoistForest':'MoistForest.jpg','MoistTundra':'MoistTundra.jpg','RainTundra':'RainTundra.jpg','Rainforest':'Rainforest.jpg',
+  'Savanna':'Savanna.jpg','ShallowOcean':'ShallowOcean.jpg','SoakedForest':'SoakedForest.jpg','Steppe':'Steppe.jpg',
+  'ThornWoodland':'ThornWoodland.jpg','WetForest':'WetForest.jpg','WetTundra':'WetTundra.jpg','Woodland':'Woodland.jpg',
+  'XericForest':'XericForest.png',
+};
+let currentBiome = 'Grassland';
+function biomeKey() { return currentBiome.toLowerCase(); }
+function setBiome(name) {
+  currentBiome = name;
+  const bg = document.getElementById('biomeBg');
+  if(bg) bg.style.backgroundImage = `url('../BiomeImages/${BIOME_IMAGES[name]}')`;
+  render();
+}
+// Multipliers an item contributes in the current biome: {atk, def}
+function biomeItemMult(item) {
+  const e = BIOME_FX[item];
+  if(!e) return null;
+  const k = biomeKey();
+  let atk=1, def=1;
+  if(e.def && e.def.includes(k)) def *= 1.2;
+  if(e.atk && e.atk.includes(k)) atk *= 1.2;
+  if(e.deb && e.deb.includes(k)) { atk *= 0.75; def *= 0.75; }
+  if(e.atkDeb && e.atkDeb.includes(k)) atk *= 0.75; // e.g. metal armor overheating
+  return (atk!==1||def!==1) ? {atk,def} : null;
+}
+
+const BLDG_DATA = {
+  'Tower':       {levels:[[3,5,5,1],[4,6,6,2],[5,7,7,3]],hp:[30,43,55]},
+  'Fort':        {levels:[[4,6,7,3],[5,7,8,5],[6,8,9,7]],hp:[50,60,80]},
+  'Wooden Wall': {levels:[[3,4,5,0],[4,5,6,0],[5,6,7,0]],hp:[50,60,60]},
+  'Stone Wall':  {levels:[[4,5,7,0],[5,6,8,0],[6,7,9,0]],hp:[60,60,100]},
+  'Hall':        {levels:[[2,5,5,1],[3,5,6,1],[4,6,6,2]],hp:[20,25,30]},
+  'Capital':     {levels:[[2,6,6,2],[3,7,7,3],[4,8,8,4]],hp:[35,40,45]},
+  'Library':     {levels:[[2,3,4,0],[3,4,5,0],[4,5,6,0]],hp:[35,40,45]},
+  'Workshop':    {levels:[[2,3,4,0],[3,4,5,0],[4,5,6,0]],hp:[20,25,30]},
+  'Church':      {levels:[[2,6,6,0],[3,7,7,0],[4,8,8,0]],hp:[20,30,40]},
+  'University':  {levels:[[2,5,5,0],[3,6,6,0],[4,7,7,0]],hp:[35,40,45]},
+  'Smithy':      {levels:[[2,3,4,0],[3,4,5,0],[4,5,6,0]],hp:[20,25,35]},
+  'Forge':       {levels:[[2,4,4,0],[3,5,5,0],[4,6,6,0]],hp:[20,30,40]},
+  'Wonder':      {levels:[[4,6,7,0]],hp:[100]},
+  'Monument':    {levels:[[3,6,7,0]],hp:[25]},
+};
+
+function getBldgStats(b) {
+  const d = BLDG_DATA[b.name];
+  const lvl = Math.min(b.level, d.levels.length-1);
+  const [hd,md,pd,g] = d.levels[lvl];
+  return {heavyDef:hd, meleeDef:md, pierceDef:pd, garrison:g};
+}
+
+// Garrison building damage soak: portion of incoming damage absorbed by the building
+const GARRISON_SOAK = { 'Tower':[.4,.5,.6], 'Fort':[.55,.65,.75], 'Capital':[.3,.4,.5] };
+function garrisonSoak(e) {
+  if(e.pos!=='G' || !e.garrisonBldgId) return null;
+  const b = buildings.find(x=>x.id===e.garrisonBldgId && x.hp>0);
+  if(!b) return null;
+  const arr = GARRISON_SOAK[b.name];
+  if(!arr) return null;
+  return { b, pct: arr[Math.min(b.level, arr.length-1)] };
+}
+
+// Defense multiplier with a 10% penetration floor: armor can never fully
+// nullify an attack — at least 10% of pre-defense damage always gets through.
+function defMult(atk, def) {
+  return Math.max(0.1, 1 - (def||0)/((atk)*3));
+}
+
+// HP damage modifier: y = -0.4x + 1 (per manual, linear)
+function hpMod(u) {
+  const x = Math.max(0, Math.min(1, 1 - u.hp/Math.max(1,u.maxHp)));
+  return Math.max(0, -0.4*x + 1);
+}
+
+const SIEGE_WEAPONS = new Set(['Trebuchet','Mortar','Bombard','Culverin','Cannon','Ballista','Catapult','Battering Ram']);
+
+// Garrison DEF bonus a unit gets from the specific building it occupies (25% of its DEFs)
+function garrisonBonus(u) {
+  if(u.pos !== 'G' || !u.garrisonBldgId) return null;
+  const b = buildings.find(x => x.id === u.garrisonBldgId && x.hp > 0);
+  if(!b) return null;
+  const bs = getBldgStats(b);
+  return {
+    bldgName: b.name,
+    heavyDef:  +(0.25*bs.heavyDef).toFixed(2),
+    meleeDef:  +(0.25*bs.meleeDef).toFixed(2),
+    pierceDef: +(0.25*bs.pierceDef).toFixed(2),
+  };
+}
+
+// Total equipment contribution to one stat (weapon + armor + mount)
+function equipDelta(u, k) {
+  const w=WEAPON_DATA[u.weapon]||{}, a=ARMOR_DATA[u.armor]||{}, m=MOUNT_DATA[u.mount]||{};
+  const wv = k==='r' ? 0 : (w[k]||0);
+  return +((wv)+(a[k]||0)+(m[k]||0)).toFixed(2);
+}
+
+// Equipment slot icon button: shows the equipped item's sprite (Empty.png if none);
+// swaps to the slot's Hover icon on mouseover. Click opens the item menu.
+function eqBtn(u, slot) {
+  const item = u[slot];
+  const equipped = item!=='(none)';
+  const idle = equipped ? equipSprite(item) : SPR+'Empty.png';
+  const hover = SLOT_ICON[slot].hover;
+  const siegeLock = slot==='mount' && SIEGE_WEAPONS.has(u.weapon);
+  const label = slot[0].toUpperCase()+slot.slice(1);
+  const title = siegeLock ? `Siege crews cannot ride mounts` : `${label}: ${item}`;
+  return `<button class="eq-btn${siegeLock?' disabled':''}" title="${title}"
+    onmouseenter="this.firstElementChild.src='${hover}'"
+    onmouseleave="this.firstElementChild.src='${idle}'"
+    onclick="${siegeLock?'':`openEquipMenu(event,${u.id},'${slot}')`}">
+    <img src="${idle}" onerror="this.onerror=null;this.src='${SPR}Empty.png'">
+  </button>`;
+}
+
+// ── Equipment popup menu ────────────────────────────────────────
+function closeEquipMenu() {
+  const m = document.getElementById('equipMenu');
+  if(m) m.remove();
+  document.removeEventListener('mousedown', _equipMenuOutside, true);
+}
+function _equipMenuOutside(e) {
+  const m = document.getElementById('equipMenu');
+  if(m && !m.contains(e.target)) closeEquipMenu();
+}
+function openEquipMenu(ev, unitId, slot) {
+  ev.stopPropagation();
+  closeEquipMenu();
+  const u = findUnit(unitId); if(!u) return;
+  const list = slot==='weapon' ? WEAPONS : slot==='armor' ? ARMORS : MOUNTS;
+  const menu = document.createElement('div');
+  menu.className = 'equip-menu';
+  menu.id = 'equipMenu';
+  menu.innerHTML = `<div class="equip-menu-head">${slot[0].toUpperCase()+slot.slice(1)} — ${u.name}</div>` +
+    list.map(item=>{
+      const src = item==='(none)' ? SPR+'NoEquip.png' : equipSprite(item);
+      return `<div class="equip-menu-item${u[slot]===item?' sel':''}" onclick="equipUnit(${unitId},'${slot}','${item.replace(/'/g,"\\'")}');closeEquipMenu()">
+        <img src="${src}" onerror="this.onerror=null;this.src='${SPR}Empty.png'">${item}</div>`;
+    }).join('');
+  document.body.appendChild(menu);
+  // Position near the button, kept on-screen
+  const r = ev.currentTarget.getBoundingClientRect();
+  const mw = 190, mh = Math.min(320, list.length*20+26);
+  menu.style.left = Math.min(window.innerWidth-mw-8, r.left) + 'px';
+  menu.style.top  = (r.bottom+mh<window.innerHeight ? r.bottom+3 : Math.max(4, r.top-mh-3)) + 'px';
+  setTimeout(()=>document.addEventListener('mousedown', _equipMenuOutside, true), 0);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BOARD MODEL — 8 ranks x 3 lanes, retreat columns at each end
+//   col -1 = attacker retreat · 0..7 combat ranks · 8 = defender retreat
+//   Walls sit on boundaries b∈{4,5,6} = between col b and b+1 (defender side)
+// ═══════════════════════════════════════════════════════════════════
+let unitIdCounter=0, bldgIdCounter=0, subTurn=0, battleOver=false, showDeltas=false;
+let expandedUnitId=null, targetMode=null;
+const units=[];      // {id,side,col,row,pos(null|'G'),garrisonBldgId,name,weapon,armor,mount,hp,maxHp,movesLeft,repositioning,retreatAt,targetKey}
+const buildings=[];
+const walls={4:null,5:null,6:null}; // {type,level,hp,maxHp}
+
+function makeUnit(side){
+  return { id:++unitIdCounter, side, col:side==='A'?0:7, row:(unitIdCounter)%3, pos:null,
+    garrisonBldgId:null, name:'Unit '+unitIdCounter, weapon:'(none)', armor:'(none)', mount:'(none)',
+    hp:BASE.hp, maxHp:BASE.hp, movesLeft:1, repositioning:false, retreatAt:null, targetKey:null, plannedMove:null };
+}
+function findUnit(id){ return units.find(u=>u.id===id)||null; }
+function alive(){ return units.filter(u=>u.hp>0); }
+function tileUnits(c,r){ return units.filter(u=>u.hp>0&&u.pos!=='G'&&u.col===c&&u.row===r); }
+function garrisonUnits(){ return units.filter(u=>u.hp>0&&u.pos==='G'); }
+function isMounted(u){ return u.mount!=='(none)'; }
+function maxMoves(u){ return isMounted(u)?2:1; }
+function unitX(u){ return u.pos==='G' ? 8 : u.col; }
+
+// ── stats ─────────────────────────────────────────────────────────
+function getStats(u){
+  const s={...BASE};
+  const w=WEAPON_DATA[u.weapon]||WEAPON_DATA['(none)'];
+  const a=ARMOR_DATA[u.armor]||{}, m=MOUNT_DATA[u.mount]||{};
+  for(const[k,v] of Object.entries(w)) if(k!=='r') s[k]=(s[k]||0)+v;
+  for(const[k,v] of Object.entries(a)) s[k]=(s[k]||0)+v;
+  for(const[k,v] of Object.entries(m)) s[k]=(s[k]||0)+v;
+  s.rangePct=w.r??[1,0,0,0,0];
+  s.range=s.rangePct.reduce((mx,p,i)=>p>0?i:mx,0);
+  for(const item of [u.weapon,u.armor,u.mount]){
+    const bm=biomeItemMult(item);
+    if(!bm) continue;
+    for(const t of ['heavy','melee','pierce']){ s[t+'Atk']*=bm.atk; s[t+'Def']*=bm.def; }
+  }
+  const gb=garrisonBonus(u);
+  if(gb){ s.heavyDef+=gb.heavyDef; s.meleeDef+=gb.meleeDef; s.pierceDef+=gb.pierceDef; }
+  return s;
+}
+function isRanged(s){ return s.rangePct.some((p,i)=>i>0&&p>0); }
+
+// ── movement ──────────────────────────────────────────────────────
+// Lane blocking: no tile "behind" an enemy in the same lane may be entered.
+function laneLimit(side,row){
+  if(side==='A'){ // attacker moves right; blocked past leftmost enemy in lane
+    const cols=units.filter(u=>u.hp>0&&u.pos!=='G'&&u.side==='B'&&u.row===row&&u.col<=7).map(u=>u.col);
+    return cols.length?Math.min(...cols)-1:7;
+  } else {
+    const cols=units.filter(u=>u.hp>0&&u.pos!=='G'&&u.side==='A'&&u.row===row&&u.col>=0).map(u=>u.col);
+    return cols.length?Math.max(...cols)+1:0;
+  }
+}
+function wallBlocks(side,fromC,toC){ // moving one step horizontally
+  if(side==='B') return false;                    // defenders pass their own walls freely
+  const b=Math.min(fromC,toC);                    // boundary index between the two cols
+  return !!(walls[b]&&walls[b].hp>0);
+}
+function tileEnterable(u,c,r){
+  if(c<-1||c>8||r<0||r>2) return false;
+  if(c===-1&&u.side!=='A') return false;          // retreat columns are side-exclusive
+  if(c===8&&u.side!=='B') return false;
+  const enemy=u.side==='A'?'B':'A';
+  if(tileUnits(c,r).some(x=>x.side===enemy)) return false;
+  if(c>=0&&c<=7){
+    if(u.side==='A'&&c>laneLimit('A',r)) return false;
+    if(u.side==='B'&&c<laneLimit('B',r)) return false;
+  }
+  return true;
+}
+// BFS of reachable tiles within budget (Infinity during setup)
+function reachableTiles(u){
+  if(u.pos==='G') return {};
+  const budget=subTurn===0?maxMoves(u):((u.movesLeft||0)+(u.plannedMove?u.plannedMove.cost:0));
+  if(budget<=0) return {};
+  const seen={}; const q=[[u.col,u.row,0,[]]];
+  seen[u.col+','+u.row]={cost:0,path:[]};
+  while(q.length){
+    const [c,r,d,path]=q.shift();
+    if(d>=budget) continue;
+    const steps=[[c-1,r],[c+1,r],[c,r-1],[c,r+1]];
+    for(const [c2,r2] of steps){
+      if(c2!==c && wallBlocks(u.side,c,c2)) continue;
+      if(!tileEnterable(u,c2,r2)) continue;
+      const k=c2+','+r2;
+      if(k in seen) continue;
+      const p2=[...path,[c2,r2]];
+      seen[k]={cost:d+1,path:p2}; q.push([c2,r2,d+1,p2]);
+    }
+  }
+  delete seen[u.col+','+u.row];
+  return seen;
+}
+function moveUnit(id,c,r){
+  const u=findUnit(id); if(!u) return;
+  const reach=reachableTiles(u);
+  const k=c+','+r;
+  if(c===u.col&&r===u.row){ cancelMove(id); return; }
+  if(!(k in reach)){ render(); return; }
+  if(u.plannedMove) u.movesLeft+=u.plannedMove.cost;   // re-plan: refund old order
+  if(subTurn===0){
+    // deployment order: free, no combat penalty — executes when battle starts
+    u.plannedMove={c,r,cost:0,path:reach[k].path};
+    logLine(`<span class="lmove">${u.name} is ordered to ${c===-1||c===8?'the RETREAT line':'rank '+(c+1)+', lane '+(r+1)} — moves when battle begins.</span>`);
+  } else {
+    u.plannedMove={c,r,cost:reach[k].cost,path:reach[k].path};
+    u.movesLeft-=reach[k].cost;
+    u.repositioning=true;
+    logLine(`<span class="lmove">${u.name} will move to ${c===-1||c===8?'RETREAT':'rank '+(c+1)+', lane '+(r+1)} at subturn's end (−${isMounted(u)?'10':'50'}% dmg now).</span>`);
+  }
+  render();
+}
+function cancelMove(id){
+  const u=findUnit(id); if(!u||!u.plannedMove) return;
+  u.movesLeft+=u.plannedMove.cost;
+  u.plannedMove=null;
+  u.repositioning=false;
+  logLine(`<span class="linfo">${u.name} holds position.</span>`);
+  render();
+}
+
+// ── walls ─────────────────────────────────────────────────────────
+function wallStats(w){ // reuse BLDG_DATA wall defense rows
+  const d=BLDG_DATA[w.type]; const lvl=Math.min(w.level,d.levels.length-1);
+  const [hd,md,pd]=d.levels[lvl];
+  return {heavyDef:hd,meleeDef:md,pierceDef:pd};
+}
+function buildWall(){
+  const b=+document.getElementById('wallB').value;
+  const type=document.getElementById('wallT').value;
+  const lvl=+document.getElementById('wallL').value;
+  const d=BLDG_DATA[type]; const realLvl=Math.min(lvl,d.hp.length-1);
+  walls[b]={type,level:realLvl,hp:d.hp[realLvl],maxHp:d.hp[realLvl]};
+  logLine(`<span class="linfo">🧱 ${type} Lv${realLvl+1} raised on wall line ${7-b} (between rank ${b+1} and ${b+2}).</span>`);
+  render();
+}
+function removeWall(b){ walls[b]=null; render(); }
+function intactWallsBetween(x1,x2){ // exclusive span
+  const lo=Math.min(x1,x2), hi=Math.max(x1,x2);
+  return [4,5,6].filter(b=>b>=lo&&b<hi&&walls[b]&&walls[b].hp>0);
+}
+
+// ── targeting ─────────────────────────────────────────────────────
+// Candidates for u: enemy tiles in the SAME LANE (garrison is lane-agnostic,
+// both as attacker platform and as target), walls (attackers only), garrison.
+function targetCands(u){
+  const s=getStats(u), rp=s.rangePct, ranged=isRanged(s);
+  const enemy=u.side==='A'?'B':'A';
+  const x=unitX(u);
+  const cands=[];
+  const lanes=u.pos==='G'?[0,1,2]:[u.row];
+  for(const r of lanes){
+    for(let c=-1;c<=8;c++){
+      const list=tileUnits(c,r).filter(e=>e.side===enemy);
+      if(!list.length) continue;
+      const d=Math.abs(c-x)-1;
+      if(d<0||d>4||!(rp[d]>0)) continue;
+      if(!ranged&&intactWallsBetween(x,c).length) continue;
+      cands.push({key:c+','+r,kind:'units',col:c,row:r,units:list,d,pct:rp[d]});
+    }
+  }
+  // vertical fire along the unit's own column (orthogonal, never diagonal):
+  // enemies sharing the rank in another lane are legal targets too
+  if(u.pos!=='G'){
+    for(let r2=0;r2<3;r2++){
+      if(r2===u.row) continue;
+      const list=tileUnits(u.col,r2).filter(e=>e.side===enemy);
+      if(!list.length) continue;
+      const d=Math.abs(r2-u.row)-1;
+      if(d>4||!(rp[d]>0)) continue;
+      cands.push({key:u.col+','+r2,kind:'units',col:u.col,row:r2,units:list,d,pct:rp[d]});
+    }
+  }
+  // enemy garrison (attacker only, lane-agnostic; ranged shoots over walls)
+  if(u.side==='A'&&garrisonUnits().length){
+    const d=8-x-1;
+    if(d>=0&&d<=4&&rp[d]>0&&(ranged||!intactWallsBetween(x,8).length))
+      cands.push({key:'G',kind:'garrison',units:garrisonUnits(),d,pct:rp[d]});
+  }
+  // walls (attacker only)
+  if(u.side==='A') for(const b of [4,5,6]){
+    if(!(walls[b]&&walls[b].hp>0)) continue;
+    const d=b-x;
+    if(d<0||d>4||!(rp[d]>0)) continue;
+    cands.push({key:'wall:'+b,kind:'wall',b,d,pct:rp[d]});
+  }
+  return cands;
+}
+function pickTarget(u){
+  const cands=targetCands(u);
+  if(!cands.length) return null;
+  let pick=null;
+  if(u.targetKey!=null) pick=cands.find(c=>c.key===u.targetKey)||null;
+  if(!pick){
+    const unitC=cands.filter(c=>c.kind!=='wall');
+    if(unitC.length) pick=unitC.reduce((b,c)=>c.pct>b.pct||(c.pct===b.pct&&c.d<b.d)?c:b,unitC[0]);
+    else pick=cands.reduce((b,c)=>c.d<b.d?c:b,cands[0]);
+  }
+  return {...pick, multi:cands.length>1, cands};
+}
+function computeAttack(u){
+  if(u.hp<=0) return null;
+  const t=pickTarget(u);
+  if(!t) return null;
+  const s=getStats(u);
+  const mod=hpMod(u)*(u.repositioning?(isMounted(u)?0.9:0.5):1);
+  const res={...t,mod,unitDmg:new Map(),wallDmgMap:new Map(),bldgDmgMap:new Map(),total:0,bldgTotal:0,wallTotal:0};
+  const TY=['heavy','melee','pierce'];
+  if(t.kind==='wall'){
+    const ws=wallStats(walls[t.b]);
+    let d=0;
+    for(const ty of TY){
+      const atk=s[ty+'Atk']||0,dv=s[ty+'Dmg']||0;
+      if(atk<=0||dv<=0) continue;
+      d+=dv*mod*t.pct*defMult(atk,ws[ty+'Def']);
+    }
+    res.wallDmgMap.set(t.b,d); res.wallTotal=d;
+    return res;
+  }
+  // Attacker volleys crossing intact walls: each wall soaks 60% of what reaches
+  // it (reduced by its own DEF); only the remainder continues on.
+  let pass=1;
+  if(u.side==='A'){
+    const x=unitX(u), tx=t.kind==='garrison'?8:t.col;
+    const wb=intactWallsBetween(x,tx).sort((p,q)=>p-q);
+    for(const b of wb){
+      const ws=wallStats(walls[b]);
+      let wd=0;
+      for(const ty of TY){
+        const atk=s[ty+'Atk']||0,dv=s[ty+'Dmg']||0;
+        if(atk<=0||dv<=0) continue;
+        wd+=dv*mod*t.pct*(0.6*pass)*defMult(atk,ws[ty+'Def']);
+      }
+      if(wd>0){ res.wallDmgMap.set(b,(res.wallDmgMap.get(b)||0)+wd); res.wallTotal+=wd; }
+      pass*=0.4;
+    }
+  }
+  const totSize=t.units.reduce((a,e)=>a+getStats(e).size,0)||1;
+  for(const e of t.units){
+    const es=getStats(e), share=es.size/totSize, soak=garrisonSoak(e);
+    let d=0;
+    for(const ty of TY){
+      const atk=s[ty+'Atk']||0,dv=s[ty+'Dmg']||0;
+      if(atk<=0||dv<=0) continue;
+      const raw=dv*share*mod*t.pct*pass;
+      if(soak){
+        const bs=getBldgStats(soak.b);
+        const bd=raw*soak.pct*defMult(atk,bs[ty+'Def']);
+        res.bldgDmgMap.set(soak.b.id,(res.bldgDmgMap.get(soak.b.id)||0)+bd);
+        res.bldgTotal+=bd;
+        d+=raw*(1-soak.pct)*defMult(atk,es[ty+'Def']);
+      } else d+=raw*defMult(atk,es[ty+'Def']);
+    }
+    d=Math.round(d*100)/100;
+    res.unitDmg.set(e.id,d); res.total+=d;
+  }
+  return res;
+}
+function predictAttack(u){ return computeAttack(u); }
+
+// ── combat resolution ─────────────────────────────────────────────
+function resolveSubturn(){
+  const logs=[];
+  // 1. compute damage simultaneously (walls soak attacker volleys en route)
+  const dmg=new Map(), wallDmg=new Map(), bldgDmg=new Map();
+  for(const u of alive()){
+    const pa=computeAttack(u);
+    if(!pa) continue;
+    for(const [id,d] of pa.unitDmg) dmg.set(id,(dmg.get(id)||0)+d);
+    for(const [wb,d] of pa.wallDmgMap) wallDmg.set(wb,(wallDmg.get(wb)||0)+d);
+    for(const [bid,d] of pa.bldgDmgMap) bldgDmg.set(bid,(bldgDmg.get(bid)||0)+d);
+    if(pa.kind==='wall'){
+      logs.push(`<span class="lhit">${u.name}</span> batters the wall (line ${7-pa.b}): <span class="ldmg">${pa.wallTotal.toFixed(2)} dmg</span>`);
+    } else if(pa.total>0||pa.bldgTotal>0||pa.wallTotal>0){
+      const where=pa.kind==='garrison'?'garrison':`rank ${pa.col===-1||pa.col===8?'RETREAT':pa.col+1} L${pa.row+1}`;
+      const wallNote=pa.wallTotal>0?` <span style="color:var(--copper)">(walls soak ${pa.wallTotal.toFixed(2)})</span>`:'';
+      logs.push(`<span class="lhit">${u.name}</span> → ${where}: <span class="ldmg">${pa.total.toFixed(2)} dmg</span>${pa.bldgTotal>0?` <span style="color:var(--garr)">(+${pa.bldgTotal.toFixed(2)} bldg)</span>`:''}${wallNote}${pa.pct<1?` <span class="linfo">(×${(pa.pct*100).toFixed(0)}%)</span>`:''}`);
+    }
+  }
+  // 3. apply
+  for(const u of units){
+    const d=dmg.get(u.id)||0;
+    if(d>0){ u.hp=Math.max(0,u.hp-d); if(u.hp<=0) logs.push(`<span style="color:var(--red)">✝ ${u.name} has fallen.</span>`); }
+  }
+  for(const [b,d] of wallDmg){
+    walls[b].hp=Math.max(0,walls[b].hp-d);
+    if(walls[b].hp<=0) logs.push(`<span style="color:var(--red)">🧱 The ${walls[b].type} on line ${7-b} is breached!</span>`);
+  }
+  for(const [bid,d] of bldgDmg){
+    const b=buildings.find(x=>x.id===bid); if(!b) continue;
+    b.hp=Math.max(0,b.hp-d);
+    if(b.hp<=0){
+      logs.push(`<span style="color:var(--red)">🏰 ${b.name} destroyed!</span>`);
+      for(const u of units.filter(x=>x.pos==='G'&&x.garrisonBldgId===bid)){
+        u.hp=Math.max(0,u.hp-5); u.pos=null; u.garrisonBldgId=null; u.col=7; u.row=units.indexOf(u)%3;
+        logs.push(`<span class="lmove">${u.name} displaced to rank 8 (−5 HP).</span>`);
+        if(u.hp<=0) logs.push(`<span style="color:var(--red)">✝ ${u.name} has fallen.</span>`);
+      }
+    }
+  }
+  // retreat exits: units that stood in the retreat line through this subturn's combat
+  for(const u of [...units]){
+    if(u.hp>0&&(u.col===-1||u.col===8)&&u.retreatAt!=null&&u.retreatAt<subTurn){
+      units.splice(units.indexOf(u),1);
+      logs.push(`<span class="lmove">🏳 ${u.name} exits the battle.</span>`);
+    }
+  }
+  // execute planned moves step by step (mounted units take 2 phases).
+  // A unit whose next path cell has been claimed by the enemy this subturn
+  // is stopped where it stands — a charge intercepted mid-gallop.
+  const movers=units.filter(u=>u.hp>0&&u.plannedMove&&u.plannedMove.path&&u.plannedMove.path.length);
+  const startPos={}; for(const u of movers) startPos[u.id]=[u.col,u.row];
+  const stopped=new Set();
+  const maxPhase=movers.reduce((m,u)=>Math.max(m,u.plannedMove.path.length),0);
+  for(let ph=0; ph<maxPhase; ph++){
+    const intents=[];
+    for(const u of movers){
+      if(stopped.has(u.id)||u.hp<=0) continue;
+      const p=u.plannedMove.path;
+      if(ph>=p.length) continue;
+      intents.push({u,c:p[ph][0],r:p[ph][1]});
+    }
+    if(!intents.length) break;
+    const limA={},limB={};
+    for(let r=0;r<3;r++){ limA[r]=laneLimit('A',r); limB[r]=laneLimit('B',r); }
+    const byDest={};
+    for(const it of intents) (byDest[it.c+','+it.r]=byDest[it.c+','+it.r]||[]).push(it);
+    for(const k in byDest){
+      const grp=byDest[k];
+      const [c,r]=k.split(',').map(Number);
+      const movingIds=new Set(grp.map(g=>g.u.id));
+      const occ=tileUnits(c,r).filter(o=>!movingIds.has(o.id));
+      const allowed={A:true,B:true};
+      if(occ.some(o=>o.side==='B')) allowed.A=false;
+      if(occ.some(o=>o.side==='A')) allowed.B=false;
+      const hasA=grp.some(g=>g.u.side==='A'), hasB=grp.some(g=>g.u.side==='B');
+      if(!occ.length&&hasA&&hasB){
+        const sz=s=>grp.filter(g=>g.u.side===s).reduce((t,g)=>t+getStats(g.u).size,0);
+        const sa=sz('A'), sb=sz('B');
+        if(sa<sb) allowed.B=false; else allowed.A=false;
+        logs.push(`<span class="linfo">⚔ Both sides rush rank ${c===-1||c===8?'RETREAT':c+1} L${r+1} — ${sa<sb?'the attackers':'the defenders'} (size ${Math.min(sa,sb).toFixed(1)} vs ${Math.max(sa,sb).toFixed(1)}) win the ground${sa===sb?' (tie → defender)':''}.</span>`);
+      }
+      for(const g of grp){
+        let ok=allowed[g.u.side];
+        if(ok&&c>=0&&c<=7){
+          if(g.u.side==='A'&&c>limA[r]) ok=false;
+          if(g.u.side==='B'&&c<limB[r]) ok=false;
+        }
+        if(!ok){
+          stopped.add(g.u.id);
+          const mid=ph<g.u.plannedMove.path.length-1;
+          logs.push(`<span class="linfo">${g.u.name}${mid||ph>0?"'s charge is intercepted — stuck at":' is blocked and holds at'} ${g.u.col===-1||g.u.col===8?'the retreat line':'rank '+(g.u.col+1)+' L'+(g.u.row+1)}.</span>`);
+          continue;
+        }
+        g.u.col=c; g.u.row=r;
+      }
+    }
+  }
+  for(const u of movers){
+    if(u.hp<=0){ u.plannedMove=null; continue; }
+    const [sc,sr]=startPos[u.id];
+    if(u.col!==sc||u.row!==sr){
+      if(u.col===-1||u.col===8){
+        if(u.retreatAt==null){ u.retreatAt=subTurn; logs.push(`<span class="lmove">🏳 ${u.name} reaches the retreat line — exits after the next subturn.</span>`); }
+      } else {
+        u.retreatAt=null;
+        logs.push(`<span class="lmove">${u.name} advances to rank ${u.col+1}, lane ${u.row+1}.</span>`);
+      }
+    }
+    u.plannedMove=null;
+  }
+  // reset movement
+  for(const u of units){ u.repositioning=false; u.movesLeft=maxMoves(u); u.plannedMove=null; }
+  subTurn++;
+  return logs;
+}
+function sideAlive(side){ return alive().filter(u=>u.side===side); }
+function checkBattleOver(){
+  const a=sideAlive('A').length, b=sideAlive('B').length;
+  if(!a&&!b){ logLine('<span class="lwin">⚔ Draw — all units fallen.</span>'); return true; }
+  if(!a){ logLine('<span class="lwin">🛡 Defender wins!</span>'); return true; }
+  if(!b){ logLine('<span class="lwin">⚔ Attacker wins!</span>'); return true; }
+  return false;
+}
+function stepBattle(){
+  const a=sideAlive('A').length,b=sideAlive('B').length;
+  if(battleOver&&a&&b) battleOver=false;
+  if(battleOver) return;
+  if(!a||!b){ logLine('<span class="linfo">Both sides need living units to fight.</span>'); return; }
+  if(subTurn===0){ subTurn=1; for(const u of units){u.movesLeft=maxMoves(u);u.repositioning=false;} logLine('<span class="lt">⚔ BATTLE JOINED</span>'); }
+  logLine(`<span class="lt">── Subturn ${subTurn} ──</span>`);
+  for(const l of resolveSubturn()) logLine(l);
+  render();
+  if(checkBattleOver()) battleOver=true;
+}
+function runAll(){
+  stepBattle();
+  let guard=0;
+  while(!battleOver&&guard++<300) stepBattle();
+  if(guard>=300) logLine('<span class="linfo">Stopped after 300 subturns.</span>');
+}
+function resetBattle(){
+  units.length=0; buildings.length=0; walls[4]=walls[5]=walls[6]=null;
+  subTurn=0; battleOver=false; expandedUnitId=null; endTargetSelect();
+  clearLog(); logLine('<span class="linfo">Reset. Muster units and press Step.</span>');
+  render();
+}
+function clearFallen(){
+  let n=0;
+  for(let i=units.length-1;i>=0;i--) if(units[i].hp<=0){ units.splice(i,1); n++; }
+  if(n) logLine(`<span class="linfo">🧹 ${n} fallen unit${n===1?'':'s'} cleared.</span>`);
+  render();
+}
+function toggleDeltas(){ showDeltas=!showDeltas; document.getElementById('deltaToggleBtn').classList.toggle('pri',showDeltas); render(); }
+
+// ── unit management ───────────────────────────────────────────────
+function addUnit(side){
+  const u=makeUnit(side);
+  // find least-crowded lane on the starting rank
+  const counts=[0,1,2].map(r=>tileUnits(u.col,r).length);
+  u.row=counts.indexOf(Math.min(...counts));
+  units.push(u); render();
+}
+function removeUnit(id){
+  const i=units.findIndex(u=>u.id===id);
+  if(i>=0) units.splice(i,1);
+  if(expandedUnitId===id) expandedUnitId=null;
+  render();
+}
+function renameUnit(id,name){ const u=findUnit(id); if(u) u.name=name; }
+function equipUnit(id,slot,val){
+  const u=findUnit(id); if(!u) return;
+  if(slot==='weapon'&&SIEGE_WEAPONS.has(val)&&u.mount!=='(none)'){
+    logLine(`<span class="linfo">${u.name} dismounted — a ${val} crew cannot ride a ${u.mount}.</span>`);
+    u.mount='(none)';
+  }
+  if(slot==='mount'&&val!=='(none)'&&u.pos==='G'){ logLine(`<span class="linfo">${u.name} cannot mount up inside a building.</span>`); render(); return; }
+  if(slot==='mount'&&val!=='(none)'&&SIEGE_WEAPONS.has(u.weapon)){ logLine(`<span class="linfo">${u.name} cannot mount a ${val} while crewing a ${u.weapon}.</span>`); render(); return; }
+  if(slot==='weapon') u.targetKey=null;
+  u[slot]=val;
+  u.movesLeft=subTurn===0?maxMoves(u):Math.min(u.movesLeft,maxMoves(u));
+  render();
+}
+function toggleExpand(id){ expandedUnitId=expandedUnitId===id?null:id; render(); }
+
+// ── garrison ──────────────────────────────────────────────────────
+function bldgOccupants(bid){ return units.filter(u=>u.pos==='G'&&u.garrisonBldgId===bid&&u.hp>0); }
+function garrisonUnitTo(bid,unitId){
+  const b=buildings.find(x=>x.id===bid); const u=findUnit(unitId);
+  if(!b||b.hp<=0||!u||u.hp<=0||u.side!=='B'||u.pos==='G') return;
+  if(u.mount!=='(none)'){ logLine(`<span class="linfo">${u.name} cannot garrison while mounted.</span>`); return; }
+  if(subTurn>0&&u.col<6){ logLine(`<span class="linfo">${u.name} must reach rank 7-8 to garrison.</span>`); return; }
+  const bs=getBldgStats(b);
+  if(bldgOccupants(bid).length>=bs.garrison){ logLine(`<span class="linfo">${b.name} garrison is full.</span>`); return; }
+  if(subTurn>0){ if(u.movesLeft<=0){logLine(`<span class="linfo">${u.name} has no moves left.</span>`);return;} u.movesLeft--; u.repositioning=true; }
+  u.pos='G'; u.garrisonBldgId=bid;
+  logLine(`<span class="lmove">${u.name} garrisons in ${b.name}.</span>`);
+  render();
+}
+function ungarrisonUnit(unitId){
+  const u=findUnit(unitId); if(!u||u.pos!=='G') return;
+  if(subTurn>0){ if(u.movesLeft<=0){logLine(`<span class="linfo">${u.name} has no moves left.</span>`);return;} u.movesLeft--; u.repositioning=true; }
+  u.pos=null; u.garrisonBldgId=null; u.col=7;
+  const counts=[0,1,2].map(r=>tileUnits(7,r).length);
+  u.row=counts.indexOf(Math.min(...counts));
+  logLine(`<span class="lmove">${u.name} ungarrisons to rank 8.</span>`);
+  render();
+}
+function addBuilding(){
+  const name=document.getElementById('bldgSel').value;
+  const lvl=+document.getElementById('bldgLvl').value;
+  if(!BLDG_DATA[name]) return;
+  const d=BLDG_DATA[name]; const realLvl=Math.min(lvl,d.levels.length-1);
+  buildings.push({id:++bldgIdCounter,name,level:realLvl,hp:d.hp[realLvl],maxHp:d.hp[realLvl]});
+  render();
+}
+function removeBuilding(id){
+  const i=buildings.findIndex(b=>b.id===id);
+  if(i>=0) buildings.splice(i,1);
+  for(const u of units.filter(x=>x.pos==='G'&&x.garrisonBldgId===id)){
+    u.pos=null; u.garrisonBldgId=null; u.col=7; u.row=0;
+    logLine(`<span class="lmove">${u.name} ungarrisoned — building removed.</span>`);
+  }
+  render();
+}
+
+// ── target selection UI ───────────────────────────────────────────
+function beginTargetSelect(unitId){
+  endTargetSelect();
+  const u=findUnit(unitId); if(!u||u.hp<=0) return;
+  const cands=targetCands(u);
+  if(cands.length<2) return;
+  targetMode=unitId;
+  for(const c of cands){
+    let el=null;
+    if(c.kind==='units') el=document.querySelector(`.tile[data-key="${c.col},${c.row}"]`);
+    else if(c.kind==='wall') el=document.querySelector(`.wallstrip[data-b="${c.b}"]`);
+    else el=document.getElementById('bldgList');
+    if(!el) continue;
+    el.classList.add('hl-target');
+    el._tgtH=(ev)=>{ ev.stopPropagation(); chooseTarget(unitId,c.key); };
+    el.addEventListener('click',el._tgtH,true);
+  }
+  logLine(`<span class="linfo">🎯 Pick a target for ${u.name} (Esc cancels).</span>`);
+}
+function endTargetSelect(){
+  targetMode=null;
+  for(const el of document.querySelectorAll('.hl-target')){
+    el.classList.remove('hl-target');
+    if(el._tgtH){ el.removeEventListener('click',el._tgtH,true); el._tgtH=null; }
+  }
+}
+function chooseTarget(unitId,key){
+  const u=findUnit(unitId);
+  endTargetSelect();
+  if(!u) return;
+  u.targetKey=key;
+  logLine(`<span class="lhit">🎯 ${u.name}</span> will target ${key.startsWith('wall')?'the wall':key==='G'?'the garrison':'rank '+(+key.split(',')[0]+1)+' L'+(+key.split(',')[1]+1)}.`);
+  render();
+}
+function clearTarget(unitId){ const u=findUnit(unitId); if(u){u.targetKey=null;render();} }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ endTargetSelect(); closeEquipMenu(); closeWallCard(); if(expandedUnitId){expandedUnitId=null;render();} } });
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════════════
+const COLS=['-1',0,1,2,3,4,5,6,7,'8'];
+function boardTemplateCols(){
+  // retreatA | c0..c4 | wall4 | c5 | wall5 | c6 | wall6 | c7 | retreatB
+  return '52px 1fr 1fr 1fr 1fr 1fr 13px 1fr 13px 1fr 13px 1fr 52px';
+}
+function hpColor(p){ return p>60?'#7a9c4a':p>30?'#cd9f32':'#b8452e'; }
+
+function buildChip(u){
+  const dead=u.hp<=0;
+  const pct=Math.max(0,u.hp/u.maxHp*100);
+  const d=document.createElement('div');
+  d.className=`chip ${u.side}${dead?' dead':''}${u.repositioning?' repo':''}`;
+  d.dataset.unit=u.id;
+  if(!dead){ d.draggable=true;
+    d.addEventListener('dragstart',e=>{
+      e.dataTransfer.setData('text/plain',String(u.id));
+      d.classList.add('dragging');
+      highlightMoves(u);
+    });
+    d.addEventListener('dragend',()=>{ d.classList.remove('dragging'); unhighlightMoves(); });
+  }
+  const eqIco=(item,label)=>item!=='(none)'?`<img class="pix" src="${equipSprite(item)}" title="${label}: ${item}" style="width:11px;height:11px" onerror="this.onerror=null;this.src='${SPR}Empty.png'">`:'';
+  const wIcon=eqIco(u.weapon,'Weapon')+eqIco(u.armor,'Armor')+eqIco(u.mount,'Mount');
+  const out=_chipOut[u.id]||0, inc=_chipIn[u.id]||0;
+  const mvBadge=u.plannedMove?`<span style="color:var(--verdigris);font-size:.52rem" title="Moving at subturn's end">➜</span>`:'';
+  d.innerHTML=`<div class="chip-top">${wIcon}<span class="chip-name">${u.name}</span>${mvBadge}
+    ${!dead&&out>0?`<span style="color:#cd9f60;font-size:.52rem" title="Damage dealt next subturn (after wall/building soak)">⚔${out.toFixed(1)}</span>`:''}
+    ${!dead&&inc>0?`<span style="color:#d0705a;font-size:.52rem" title="Damage received next subturn (after wall/building soak)">↓${inc.toFixed(1)}</span>`:''}
+    ${subTurn>0&&!dead?`<span class="chip-mv" title="Moves left">${'●'.repeat(u.movesLeft)}${'○'.repeat(Math.max(0,maxMoves(u)-u.movesLeft))}</span>`:''}
+    ${dead?'✝':''}</div>
+    <div class="chip-hp"><div style="width:${pct}%;background:${hpColor(pct)}"></div></div>`;
+  d.addEventListener('click',e=>{ e.stopPropagation(); toggleExpand(u.id); });
+  return d;
+}
+
+function buildExpanded(u){
+  const s=getStats(u);
+  const pct=Math.max(0,u.hp/u.maxHp*100);
+  const dead=u.hp<=0;
+  const pa=dead?null:predictAttack(u);
+  const gb=garrisonBonus(u);
+  const bfxChips=[];
+  for(const item of [u.weapon,u.armor,u.mount]){
+    const bm=biomeItemMult(item);
+    if(!bm) continue;
+    const bits=[];
+    if(bm.atk>1) bits.push('<span style="color:var(--green)">+20%⚔</span>');
+    if(bm.def>1) bits.push('<span style="color:var(--green)">+20%🛡</span>');
+    if(bm.atk<1&&bm.def<1) bits.push('<span style="color:#d07050">−25%</span>');
+    else if(bm.atk<1) bits.push('<span style="color:#d07050">−25%⚔</span>');
+    else if(bm.def<1) bits.push('<span style="color:#d07050">−25%🛡</span>');
+    bfxChips.push(`<span class="eq-bfx-chip"><img class="pix" src="${equipSprite(item)}" onerror="this.onerror=null;this.src='${SPR}Empty.png'">${bits.join('')}</span>`);
+  }
+  if(pa&&pa.pct<1) bfxChips.push(`<span class="eq-bfx-chip" title="RANGE% at range ${pa.d+1}"><img class="pix" src="${SI}TotalDamage.png" onerror="this.onerror=null;this.src='${SI}EmptyStat.png'"><span style="color:#d07050">−${((1-pa.pct)*100).toFixed(0)}%</span></span>`);
+
+  let preview='';
+  if(pa){
+    const manual=u.targetKey!=null&&u.targetKey===pa.key;
+    const tgt=pa.kind==='wall'?`Wall line ${7-pa.b}`:pa.kind==='garrison'?'Garrison':`Rank ${pa.col===-1||pa.col===8?'RETREAT':pa.col+1} · L${pa.row+1}`;
+    const tgtBtn=pa.multi?(manual
+      ?` <button class="btn sm" style="padding:0 4px" onclick="clearTarget(${u.id})" title="Back to auto">🎯✕</button>`
+      :` <button class="btn sm" style="padding:0 4px" onclick="beginTargetSelect(${u.id})" title="Choose target">🎯</button>`):'';
+    const amt=pa.kind==='wall'?pa.wallTotal:pa.total;
+    const wallNote=pa.kind!=='wall'&&pa.wallTotal>0?` <span style="color:var(--copper)" title="60% of the volley is soaked per wall crossed">🧱−${pa.wallTotal.toFixed(2)}</span>`:'';
+    preview=`→ ${manual?'🎯 ':''}${tgt} <span style="color:var(--text3)">(range ${pa.d+1})</span>: <b style="color:#d0705a">${amt.toFixed(2)}</b> dmg${pa.bldgTotal>0?` <span style="color:var(--garr)">+${pa.bldgTotal.toFixed(2)} bldg</span>`:''}${wallNote}${tgtBtn}`;
+  } else if(!dead){
+    preview=`<span style="color:var(--text3)">✕ No target in range${u.pos==='G'?'':' along its lane or rank'}</span>`;
+  }
+  const gDelta=gb?`<div class="eq-deltas" title="Garrison bonus: 25% of ${gb.bldgName} DEF" style="border-left:2px solid #9a6ab060;padding-left:3px">
+    <span style="color:var(--garr);font-size:.54rem">🛡 ${gb.bldgName}</span>
+    <span class="eqd">${sIcon('heavyDef',10)}<span class="pos">+${gb.heavyDef}</span></span>
+    <span class="eqd">${sIcon('meleeDef',10)}<span class="pos">+${gb.meleeDef}</span></span>
+    <span class="eqd">${sIcon('pierceDef',10)}<span class="pos">+${gb.pierceDef}</span></span></div>`:'';
+  const card=document.createElement('div');
+  card.className='exp-card';
+  card.addEventListener('click',e=>e.stopPropagation());
+  card.innerHTML=`
+    <div class="uc-head">
+      <button class="btn sm" style="padding:0 5px" title="Minimize" onclick="toggleExpand(${u.id})">▾</button>
+      <input class="uc-name" value="${u.name.replace(/"/g,'&quot;')}" onchange="renameUnit(${u.id},this.value)">
+      <span class="uc-hp">${sIcon('hp',11)}${Math.max(0,u.hp).toFixed(1)}/${u.maxHp}</span>
+      <button class="uc-del" onclick="removeUnit(${u.id})">✕</button>
+    </div>
+    <div class="hp-bar"><div class="hp-fill" style="width:${pct}%;background:${hpColor(pct)}"></div></div>
+    ${u.plannedMove?`<div class="uc-repo">➜ Moving to ${u.plannedMove.c===-1||u.plannedMove.c===8?'RETREAT':'rank '+(u.plannedMove.c+1)+' L'+(u.plannedMove.r+1)} at subturn's end (−${isMounted(u)?'10':'50'}% dmg) <button class="btn sm" style="padding:0 5px;margin-left:4px" onclick="cancelMove(${u.id})">✕ hold</button></div>`
+      :u.repositioning?`<div class="uc-repo">⟳ Repositioning −${isMounted(u)?'10':'50'}% dmg</div>`:''}
+    <div class="eq-icons">
+      ${eqBtn(u,'weapon')}${eqBtn(u,'armor')}${eqBtn(u,'mount')}
+      ${bfxChips.length?`<span class="eq-bfx">${bfxChips.join('')}</span>`:''}
+      <span style="margin-left:auto;font-size:.56rem;color:var(--verdigris)" title="Moves per subturn">🏃${maxMoves(u)}${subTurn>0?` (${u.movesLeft} left)`:''}</span>
+    </div>
+    ${gDelta}
+    <div class="uc-stats">
+      ${['heavyAtk','heavyDef','heavyDmg','meleeAtk','meleeDef','meleeDmg','pierceAtk','pierceDef','pierceDmg','size'].map(k=>{
+        const dv=showDeltas?equipDelta(u,k):0;
+        const dtxt=dv?`<span class="dsm ${dv>0?'pos':'neg'}">${dv>0?'+':''}${dv}</span>`:'';
+        return `<div class="st">${sIcon(k,10)}<span class="sv">${+s[k].toFixed(2)}</span>${dtxt}</div>`;
+      }).join('')}
+      <div class="st" title="Max attack range (tiles away)">${sIcon('range',10)}<span class="sv">${s.range+1}</span></div>
+      <div class="st" title="HP damage modifier">${sIcon('hp',10)}<span class="sv">${(hpMod(u)*100).toFixed(0)}%</span></div>
+    </div>
+    <div class="uc-meta">
+      <span>${u.pos==='G'?'Garrisoned':u.col===-1||u.col===8?'Retreating':`Rank ${u.col+1} · Lane ${u.row+1}`}</span>
+      <span title="Damage % at ranges 1/2/3/4/5 (tiles away)">R% <span class="sv">${(s.rangePct||[]).map(p=>(p*100).toFixed(0)).join('/')}</span></span>
+    </div>
+    ${preview?`<div class="dmg-preview">${preview}</div>`:''}`;
+  return card;
+}
+
+let _hl=null;
+function highlightMoves(u){
+  unhighlightMoves();
+  _hl=reachableTiles(u);
+  for(const k in _hl){
+    const el=document.querySelector(`.tile[data-key="${k}"]`);
+    if(el) el.classList.add('hl-move');
+  }
+}
+function unhighlightMoves(){
+  _hl=null;
+  document.querySelectorAll('.tile.hl-move').forEach(t=>t.classList.remove('hl-move'));
+}
+
+let _chipOut={}, _chipIn={};
+function computeChipDamage(){
+  _chipOut={}; _chipIn={};
+  for(const u of alive()){
+    const pa=computeAttack(u);
+    if(!pa) continue;
+    _chipOut[u.id]=pa.total+pa.bldgTotal+pa.wallTotal;
+    for(const [id,d] of pa.unitDmg) _chipIn[id]=(_chipIn[id]||0)+d;
+  }
+}
+
+function render(){
+  endTargetSelect();
+  computeChipDamage();
+  const heads=document.getElementById('colHeads');
+  const board=document.getElementById('board');
+  document.documentElement.style.setProperty('--boardcols',boardTemplateCols());
+  // damage forecast per column
+  const inD={},outD={};
+  for(const u of alive()){
+    const pa=predictAttack(u); if(!pa) continue;
+    const x=unitX(u);
+    outD[x]=(outD[x]||0)+(pa.kind==='wall'?pa.wallTotal:pa.total+pa.bldgTotal);
+    if(pa.kind==='units') inD[pa.col]=(inD[pa.col]||0)+pa.total;
+    else if(pa.kind==='garrison') inD[8]=(inD[8]||0)+pa.total;
+  }
+  let hh='';
+  const headCell=(label,x,cls='')=>{
+    const i=inD[x]?`<span class="in">↓${inD[x].toFixed(1)}</span>`:'';
+    const o=outD[x]?`<span class="out">⚔${outD[x].toFixed(1)}</span>`:'';
+    return `<div class="ch ${cls}">${label}${(i||o)?`<br>${i} ${o}`:''}</div>`;
+  };
+  hh+=headCell('🏳 Retreat',-1,'retreat-h');
+  for(let c=0;c<8;c++){
+    hh+=headCell(`Rank ${c+1}`,c);
+    if(c>=4&&c<=6) hh+='<div class="ch" style="border-bottom-color:#b8733370">🧱</div>';
+  }
+  hh+=headCell('Retreat 🏳',8,'retreat-h');
+  heads.innerHTML=hh;
+
+  board.innerHTML='';
+  const addTile=(c,r)=>{
+    const t=document.createElement('div');
+    t.className='tile'+(c===-1?' retreatA':c===8?' retreatB':'');
+    t.dataset.key=c+','+r;
+    t.addEventListener('dragover',e=>{ if(_hl&&(c+','+r) in _hl){ e.preventDefault(); t.classList.add('drag-hover'); } });
+    t.addEventListener('dragleave',()=>t.classList.remove('drag-hover'));
+    t.addEventListener('drop',e=>{
+      e.preventDefault(); t.classList.remove('drag-hover');
+      const id=parseInt(e.dataTransfer.getData('text/plain'),10);
+      moveUnit(id,c,r);
+    });
+    for(const u of units.filter(x=>x.pos!=='G'&&x.col===c&&x.row===r)){
+      t.appendChild(buildChip(u));
+    }
+    board.appendChild(t);
+    return t;
+  };
+  // grid population: row-major with wall strips (grid auto-placement column order)
+  // We place explicitly using grid-column/row to interleave wall strips spanning rows.
+  const colIndex=(c)=>{ // grid column index (1-based) for combat col c / retreat
+    if(c===-1) return 1;
+    if(c<=4) return 2+c;         // cols 0..4 -> 2..6
+    if(c===5) return 8;          // after wall4 strip at 7
+    if(c===6) return 10;         // after wall5 strip at 9
+    if(c===7) return 12;         // after wall6 strip at 11
+    return 13;                   // retreat B
+  };
+  for(let r=0;r<3;r++){
+    for(const c of [-1,0,1,2,3,4,5,6,7,8]){
+      const t=addTile(c,r);
+      t.style.gridColumn=colIndex(c);
+      t.style.gridRow=r+1;
+    }
+  }
+  // wall strips
+  const wallCol={4:7,5:9,6:11};
+  for(const b of [4,5,6]){
+    const w=walls[b];
+    const el=document.createElement('div');
+    el.className='wallstrip'+(w?(w.hp>0?' built':' built destroyed'):'')+(w&&w.type==='Stone Wall'?' stone':'');
+    el.dataset.b=b;
+    el.style.gridColumn=wallCol[b];
+    el.style.gridRow='1 / span 3';
+    if(w){
+      el.title=`${w.type} Lv${w.level+1} — click for details`;
+      el.innerHTML=`<span class="wall-lbl">${w.hp>0?w.type:'BREACHED'}</span>
+        <div class="wall-hp"><div style="width:${Math.max(0,w.hp/w.maxHp*100)}%"></div></div>`;
+      el.addEventListener('click',ev=>{ ev.stopPropagation(); showWallCard(b,ev); });
+    } else {
+      el.title='Empty wall slot — use the Wall builder below';
+      el.innerHTML='<span class="wall-lbl" style="opacity:.4">wall slot</span>';
+    }
+    board.appendChild(el);
+  }
+  renderBuildings();
+  updateBattleBar();
+  drawMoveArrows();
+  placeExpandedCard();
+  document.getElementById('subTurnLabel').textContent=subTurn===0?'Setup — free movement':'Subturn '+subTurn;
+}
+
+// Planned-movement arrows overlay
+function drawMoveArrows(){
+  const board=document.getElementById('board');
+  document.getElementById('moveArrows')?.remove();
+  const movers=units.filter(u=>u.hp>0&&u.plannedMove&&u.pos!=='G');
+  if(!movers.length) return;
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.id='moveArrows';
+  svg.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:25';
+  svg.innerHTML=`<defs>
+    <marker id="ahA" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#e08a50"/></marker>
+    <marker id="ahB" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#7aa8d8"/></marker>
+  </defs>`;
+  const bR=board.getBoundingClientRect();
+  for(const u of movers){
+    const chip=board.querySelector(`.chip[data-unit="${u.id}"]`);
+    const from=chip||board.querySelector(`.tile[data-key="${u.col},${u.row}"]`);
+    const to=board.querySelector(`.tile[data-key="${u.plannedMove.c},${u.plannedMove.r}"]`);
+    if(!from||!to) continue;
+    const f=from.getBoundingClientRect(), t=to.getBoundingClientRect();
+    const t_cx=t.left-bR.left+t.width/2, t_cy=t.top-bR.top+t.height/2;
+    // start at the chip's edge nearest the destination
+    const f_cy=f.top-bR.top+f.height/2;
+    const goingRight=t_cx > f.right-bR.left;
+    const goingLeft =t_cx < f.left-bR.left;
+    const x1=goingRight?f.right-bR.left:goingLeft?f.left-bR.left:(f.left-bR.left+f.width/2);
+    const y1=(goingRight||goingLeft)?f_cy:(t_cy>f_cy?f.bottom-bR.top:f.top-bR.top);
+    const x2=t_cx, y2=t_cy;
+    const col=u.side==='A'?'#e08a50':'#7aa8d8';
+    const mx=(x1+x2)/2, my=(y1+y2)/2-14;
+    const p=document.createElementNS('http://www.w3.org/2000/svg','path');
+    p.setAttribute('d',`M${x1},${y1} Q${mx},${my} ${x2},${y2}`);
+    p.setAttribute('fill','none');
+    p.setAttribute('stroke',col);
+    p.setAttribute('stroke-width','2');
+    p.setAttribute('stroke-dasharray','6,4');
+    p.setAttribute('opacity','0.85');
+    p.setAttribute('marker-end',u.side==='A'?'url(#ahA)':'url(#ahB)');
+    svg.appendChild(p);
+  }
+  board.appendChild(svg);
+}
+
+// Floating unit card: anchored to the chip, never clipped by tile scroll
+function placeExpandedCard(){
+  document.getElementById('expCard')?.remove();
+  if(expandedUnitId==null) return;
+  const u=findUnit(expandedUnitId);
+  if(!u||u.hp<=0){ expandedUnitId=null; return; }
+  if(u.pos==='G') return; // garrison cards render inside their building slot
+  const chip=document.querySelector(`.chip[data-unit="${u.id}"]`);
+  if(!chip) return;
+  const card=buildExpanded(u);
+  card.id='expCard';
+  document.body.appendChild(card);
+  const r=chip.getBoundingClientRect(), cw=card.offsetWidth, chh=card.offsetHeight;
+  // open toward the board center, clamped on screen
+  let left=(u.col>=5)?r.left-cw-6:r.right+6;
+  left=Math.max(4,Math.min(window.innerWidth-cw-4,left));
+  let top=Math.max(4,Math.min(window.innerHeight-chh-4,r.top-8));
+  card.style.left=left+'px';
+  card.style.top=top+'px';
+}
+
+function renderBuildings(){
+  const list=document.getElementById('bldgList');
+  list.innerHTML='';
+  if(!buildings.length){
+    list.innerHTML='<div class="linfo" style="font-size:.62rem">No buildings. Add one below — garrison-capable buildings (Fort, Tower, Hall, Capital) shelter defender units behind the walls.</div>';
+  }
+  for(const b of buildings){
+    const bs=getBldgStats(b);
+    const hp=Math.max(0,b.hp), pct=hp/b.maxHp*100;
+    const occ=bldgOccupants(b.id);
+    const d=document.createElement('div');
+    d.className='bldg-card'+(b.hp<=0?' destroyed':'');
+    d.innerHTML=`
+      <div class="bc-head">
+        <span>🏛</span><span class="bc-name">${b.name}</span>
+        <span class="bc-lvl">Lv${b.level+1}${bs.garrison>0?` · ${occ.length}/${bs.garrison}`:''}</span>
+        <button class="bc-del" onclick="removeBuilding(${b.id})">✕</button>
+      </div>
+      <div class="hp-bar"><div class="hp-fill" style="width:${pct}%;background:${hpColor(pct)}"></div></div>
+      <div class="bc-stats">
+        <div class="st">${sIcon('heavyDef',10)}<span class="sv">${bs.heavyDef}</span></div>
+        <div class="st">${sIcon('meleeDef',10)}<span class="sv">${bs.meleeDef}</span></div>
+        <div class="st">${sIcon('pierceDef',10)}<span class="sv">${bs.pierceDef}</span></div>
+        <div class="st">🛡<span class="sv">${bs.garrison} slots</span></div>
+      </div>`;
+    if(bs.garrison>0){
+      const slots=document.createElement('div');
+      slots.className='bldg-slots';
+      slots.addEventListener('dragover',e=>{ e.preventDefault(); slots.classList.add('drag-hover'); });
+      slots.addEventListener('dragleave',()=>slots.classList.remove('drag-hover'));
+      slots.addEventListener('drop',e=>{
+        e.preventDefault(); slots.classList.remove('drag-hover');
+        const id=parseInt(e.dataTransfer.getData('text/plain'),10);
+        garrisonUnitTo(b.id,id);
+      });
+      for(const u of occ){
+        const slot=document.createElement('div');
+        slot.className='garr-slot';
+        slot.innerHTML=`<div class="garr-slot-lbl">🛡 garrisoned <button class="btn sm" style="margin-left:auto;padding:0 5px" onclick="ungarrisonUnit(${u.id})">◀ out</button></div>`;
+        slot.appendChild(buildChip(u));
+        if(expandedUnitId===u.id){ const card=buildExpanded(u); card.style.position='static'; card.style.width='100%'; slot.appendChild(card); }
+        slots.appendChild(slot);
+      }
+      for(let i=occ.length;i<bs.garrison;i++){
+        const s=document.createElement('div');
+        s.className='garr-slot empty';
+        s.textContent=b.hp<=0?'✕ lost':'◇ drag a defender here';
+        slots.appendChild(s);
+      }
+      d.appendChild(slots);
+    }
+    list.appendChild(d);
+  }
+}
+
+function updateBattleBar(){
+  const aU=sideAlive('A'), bU=sideAlive('B');
+  const aEl=document.getElementById('bbarA'),bEl=document.getElementById('bbarB'),
+        fEl=document.getElementById('bbarFill'),advEl=document.getElementById('bbarAdv');
+  if(!aU.length||!bU.length){ aEl.textContent='⚔ —'; bEl.textContent='— 🛡'; fEl.style.width='50%'; advEl.textContent=''; return; }
+  const dA=aU.reduce((t,u)=>{const p=predictAttack(u);return t+(p&&p.kind!=='wall'?p.total:0);},0);
+  const dB=bU.reduce((t,u)=>{const p=predictAttack(u);return t+(p&&p.kind!=='wall'?p.total:0);},0);
+  const hA=aU.reduce((t,u)=>t+u.hp,0), hB=bU.reduce((t,u)=>t+u.hp,0);
+  const rA=dA/Math.max(1e-6,hB), rB=dB/Math.max(1e-6,hA);
+  const pct=(rA+rB)>0?rA/(rA+rB)*100:50;
+  aEl.textContent=`⚔ ${dA.toFixed(1)}`;
+  bEl.textContent=`${dB.toFixed(1)} 🛡`;
+  fEl.style.width=pct.toFixed(1)+'%';
+  advEl.textContent=Math.abs(rA-rB)<1e-4?'⚖ Even':(rA>rB?'⚔ Attacker':'🛡 Defender');
+}
+
+// ── wall info card ────────────────────────────────────────────────
+function closeWallCard(){ document.getElementById('wallCard')?.remove(); }
+function showWallCard(b,ev){
+  closeWallCard();
+  const w=walls[b]; if(!w) return;
+  const ws=wallStats(w);
+  const hp=Math.max(0,w.hp), pct=hp/w.maxHp*100;
+  const card=document.createElement('div');
+  card.className='exp-card';
+  card.id='wallCard';
+  card.style.width='210px';
+  card.addEventListener('click',e=>e.stopPropagation());
+  card.innerHTML=`
+    <div class="uc-head">
+      <span style="font-size:.8rem">🧱</span>
+      <span style="flex:1;color:var(--parch);font-size:.72rem">${w.type} <span style="color:var(--text3);font-size:.58rem">Lv${w.level+1} · line ${7-b}</span></span>
+      <button class="uc-del" onclick="closeWallCard()">✕</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:.58rem;color:var(--text2);margin:2px 0 1px">
+      <span>${sIcon('hp',11)} ${hp.toFixed(0)}/${w.maxHp}</span>
+      <span style="color:${w.hp>0?'var(--green)':'var(--red)'}">${w.hp>0?'standing':'BREACHED'}</span>
+    </div>
+    <div class="hp-bar"><div class="hp-fill" style="width:${pct}%;background:${hpColor(pct)}"></div></div>
+    <div class="uc-stats" style="grid-template-columns:repeat(3,1fr)">
+      <div class="st" title="Heavy DEF">${sIcon('heavyDef',10)}<span class="sv">${ws.heavyDef}</span></div>
+      <div class="st" title="Melee DEF">${sIcon('meleeDef',10)}<span class="sv">${ws.meleeDef}</span></div>
+      <div class="st" title="Pierce DEF">${sIcon('pierceDef',10)}<span class="sv">${ws.pierceDef}</span></div>
+    </div>
+    <div style="font-size:.54rem;color:var(--text3);line-height:1.4;margin-top:3px;border-top:1px dotted var(--border);padding-top:3px">
+      ${w.hp>0?'Blocks attacker movement across this line. Melee must batter it down; ranged weapons shoot over it.':'No longer blocks movement or attacks.'}
+    </div>
+    <button class="btn sm danger" style="width:100%;margin-top:5px" onclick="removeWall(${b});closeWallCard()">🗑 Demolish wall</button>`;
+  document.body.appendChild(card);
+  let left=Math.max(4,Math.min(window.innerWidth-card.offsetWidth-4,ev.clientX-card.offsetWidth/2));
+  let top=Math.max(4,Math.min(window.innerHeight-card.offsetHeight-4,ev.clientY+12));
+  card.style.left=left+'px';
+  card.style.top=top+'px';
+}
+
+// ── log ───────────────────────────────────────────────────────────
+function logLine(html){
+  const el=document.getElementById('logBody');
+  const d=document.createElement('div'); d.innerHTML=html;
+  el.appendChild(d); el.scrollTop=el.scrollHeight;
+}
+function clearLog(){ document.getElementById('logBody').innerHTML=''; }
+
+// ── init ──────────────────────────────────────────────────────────
+(function(){
+  const sel=document.getElementById('bldgSel');
+  for(const name of Object.keys(BLDG_DATA)){
+    if(name==='Wooden Wall'||name==='Stone Wall') continue;
+    const o=document.createElement('option'); o.textContent=name; sel.appendChild(o);
+  }
+  const bsel=document.getElementById('biomeSel');
+  for(const name of Object.keys(BIOME_IMAGES)){
+    const o=document.createElement('option'); o.textContent=name;
+    if(name===currentBiome) o.selected=true;
+    bsel.appendChild(o);
+  }
+  document.addEventListener('click',()=>{ closeWallCard(); if(expandedUnitId){expandedUnitId=null;render();} });
+  setBiome(currentBiome);
+})();
+</script>
+</body>
+</html>

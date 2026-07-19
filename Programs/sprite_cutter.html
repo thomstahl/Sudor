@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sprite Strip Cutter</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1a1a2e; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; min-height: 100vh; padding: 24px; }
+  h1 { font-size: 1.2rem; color: #c8a040; margin-bottom: 4px; letter-spacing: 0.05em; }
+  p.sub { font-size: 0.78rem; color: #888; margin-bottom: 20px; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
+    background: #12122a; border: 1px solid #2a2a4a; border-radius: 6px;
+    padding: 16px; margin-bottom: 20px;
+  }
+  .ctrl { display: flex; flex-direction: column; gap: 4px; }
+  label { font-size: 0.68rem; color: #aaa; text-transform: uppercase; letter-spacing: 0.08em; }
+  input[type=number] {
+    width: 80px; padding: 6px 8px; background: #0a0a1a; border: 1px solid #3a3a5a;
+    color: #e0e0e0; border-radius: 3px; font-size: 0.82rem;
+  }
+  input[type=file] { display: none; }
+  button, .file-btn {
+    padding: 8px 18px; border-radius: 3px; cursor: pointer; font-size: 0.78rem;
+    font-weight: 600; border: none; letter-spacing: 0.04em;
+  }
+  .file-btn {
+    background: #2a2a4a; border: 1px solid #4a4a7a; color: #c0c0e0;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .file-btn:hover { background: #3a3a5a; }
+  .btn-primary { background: #c8a040; color: #0a0a1a; }
+  .btn-primary:hover { background: #e0b850; }
+  .btn-primary:disabled { background: #4a4a4a; color: #888; cursor: not-allowed; }
+  .btn-dl { background: #2a6a2a; color: #aaffaa; border: 1px solid #4aaa4a; }
+  .btn-dl:hover { background: #3a8a3a; }
+
+  #dropzone {
+    border: 2px dashed #3a3a5a; border-radius: 6px; padding: 40px;
+    text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 20px;
+    transition: border-color 0.2s, background 0.2s; cursor: pointer;
+  }
+  #dropzone.over { border-color: #c8a040; background: rgba(200,160,64,0.05); color: #c8a040; }
+  #dropzone.loaded { border-color: #4aaa4a; background: rgba(40,180,40,0.05); }
+
+  .preview-area { display: flex; gap: 20px; flex-wrap: wrap; }
+
+  .strip-preview {
+    background: #12122a; border: 1px solid #2a2a4a; border-radius: 6px;
+    padding: 12px; flex-shrink: 0;
+  }
+  .strip-preview h3 { font-size: 0.7rem; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.08em; }
+  #sourceCanvas { display: block; image-rendering: pixelated; max-height: 600px; }
+
+  .tiles-area {
+    flex: 1; background: #12122a; border: 1px solid #2a2a4a; border-radius: 6px; padding: 12px;
+  }
+  .tiles-area h3 { font-size: 0.7rem; color: #888; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  #tilesGrid {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .tile-item {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    background: #0a0a1a; border: 1px solid #2a2a3a; border-radius: 3px;
+    padding: 5px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .tile-item:hover { border-color: #c8a040; }
+  .tile-item canvas { image-rendering: pixelated; }
+  .tile-item .tile-num { font-size: 0.55rem; color: #666; }
+  .tile-item .tile-name { font-size: 0.58rem; color: #aaa; max-width: 60px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile-item input.name-input {
+    font-size: 0.6rem; background: transparent; border: none; border-bottom: 1px solid #3a3a5a;
+    color: #ddd; width: 70px; text-align: center; outline: none; padding: 1px 2px;
+  }
+  .tile-item input.name-input:focus { border-bottom-color: #c8a040; }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  #stats { font-size: 0.72rem; color: #8ab8e8; margin-bottom: 8px; }
+
+  .mode-row { display: flex; gap: 8px; align-items: center; }
+  .mode-btn {
+    padding: 4px 10px; font-size: 0.68rem; border-radius: 3px; cursor: pointer;
+    background: #1a1a3a; border: 1px solid #3a3a5a; color: #aaa;
+  }
+  .mode-btn.active { background: rgba(200,160,64,0.15); border-color: #c8a040; color: #c8a040; }
+</style>
+</head>
+<body>
+
+<h1>🔪 Sprite Strip Cutter</h1>
+<p class="sub">Upload a vertical sprite strip, set tile size, name each sprite, then download individually or as a zip.</p>
+
+<div class="controls">
+  <div class="ctrl">
+    <label>Tile Width (px)</label>
+    <input type="number" id="tileW" value="25" min="1" max="512">
+  </div>
+  <div class="ctrl">
+    <label>Tile Height (px)</label>
+    <input type="number" id="tileH" value="25" min="1" max="512">
+  </div>
+  <div class="ctrl">
+    <label>Scale preview</label>
+    <input type="number" id="scale" value="3" min="1" max="8">
+  </div>
+  <div class="ctrl">
+    <label>Strip direction</label>
+    <div class="mode-row">
+      <button class="mode-btn active" id="modeV" onclick="setMode('vertical')">Vertical</button>
+      <button class="mode-btn" id="modeH" onclick="setMode('horizontal')">Horizontal</button>
+    </div>
+  </div>
+  <div class="ctrl" style="align-self:flex-end">
+    <label class="file-btn" for="fileInput">📂 Load Image</label>
+    <input type="file" id="fileInput" accept="image/*">
+  </div>
+  <div class="ctrl" style="align-self:flex-end">
+    <button class="btn-primary" id="cutBtn" onclick="cutSprites()" disabled>✂ Cut Sprites</button>
+  </div>
+</div>
+
+<div id="dropzone" onclick="document.getElementById('fileInput').click()">
+  Drop image here or click to upload
+</div>
+
+<div class="preview-area" id="previewArea" style="display:none">
+  <div class="strip-preview">
+    <h3>Source Strip</h3>
+    <canvas id="sourceCanvas"></canvas>
+  </div>
+  <div class="tiles-area">
+    <div id="stats"></div>
+    <div id="tilesGrid"></div>
+    <div class="actions" id="actions" style="display:none">
+      <button class="btn-primary" onclick="downloadAll()">⬇ Download All (individual PNGs)</button>
+      <button class="btn-dl" onclick="downloadZip()">📦 Download ZIP</button>
+      <button class="btn-primary" onclick="autoName()">✨ Auto-number names</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────
+let srcImg = null;
+let tiles  = []; // { canvas, name }
+let mode   = 'vertical';
+
+// ── File input ─────────────────────────────────────────────────────
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) loadFile(file);
+});
+
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('over');
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+
+function loadFile(file) {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    srcImg = img;
+    // Draw to source canvas at 3x scale
+    const sc = document.getElementById('sourceCanvas');
+    const scl = +document.getElementById('scale').value;
+    sc.width  = img.width  * scl;
+    sc.height = img.height * scl;
+    const ctx = sc.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0, sc.width, sc.height);
+    dz.textContent = `✓ Loaded: ${file.name} (${img.width}×${img.height}px)`;
+    dz.classList.add('loaded');
+    document.getElementById('previewArea').style.display = 'flex';
+    document.getElementById('cutBtn').disabled = false;
+    // Auto-fill tile size if strip is narrow
+    if (img.width <= 64)  document.getElementById('tileW').value = img.width;
+    if (img.height <= 64) document.getElementById('tileH').value = img.height;
+    cutSprites();
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('modeV').classList.toggle('active', m === 'vertical');
+  document.getElementById('modeH').classList.toggle('active', m === 'horizontal');
+  if (srcImg) cutSprites();
+}
+
+// ── Cut ────────────────────────────────────────────────────────────
+function cutSprites() {
+  if (!srcImg) return;
+  const tw   = +document.getElementById('tileW').value;
+  const th   = +document.getElementById('tileH').value;
+  const scl  = +document.getElementById('scale').value;
+  const cols = mode === 'vertical'   ? Math.floor(srcImg.width  / tw) : Math.floor(srcImg.width  / tw);
+  const rows = mode === 'vertical'   ? Math.floor(srcImg.height / th) : Math.floor(srcImg.height / th);
+
+  const totalX = Math.floor(srcImg.width  / tw);
+  const totalY = Math.floor(srcImg.height / th);
+
+  const numCols = mode === 'vertical'   ? totalX : totalX;
+  const numRows = mode === 'vertical'   ? totalY : totalY;
+
+  // Scratch canvas to pull pixels
+  const scratch = document.createElement('canvas');
+  scratch.width  = srcImg.width;
+  scratch.height = srcImg.height;
+  const sx = scratch.getContext('2d');
+  sx.drawImage(srcImg, 0, 0);
+
+  tiles = [];
+  const grid = document.getElementById('tilesGrid');
+  grid.innerHTML = '';
+
+  let idx = 0;
+  for (let r = 0; r < numRows; r++) {
+    for (let c = 0; c < numCols; c++) {
+      const x = c * tw, y = r * th;
+      const tileCanvas = document.createElement('canvas');
+      tileCanvas.width  = tw;
+      tileCanvas.height = th;
+      const tc = tileCanvas.getContext('2d');
+      tc.drawImage(scratch, x, y, tw, th, 0, 0, tw, th);
+
+      const name = `sprite_${String(idx).padStart(2,'0')}`;
+      tiles.push({ canvas: tileCanvas, name });
+
+      // Display tile
+      const disp = document.createElement('canvas');
+      disp.width  = tw * scl;
+      disp.height = th * scl;
+      disp.style.imageRendering = 'pixelated';
+      const dc = disp.getContext('2d');
+      dc.imageSmoothingEnabled = false;
+      dc.drawImage(tileCanvas, 0, 0, disp.width, disp.height);
+
+      const nameInput = document.createElement('input');
+      nameInput.type  = 'text';
+      nameInput.className = 'name-input';
+      nameInput.value = name;
+      nameInput.addEventListener('change', (e) => { tiles[idx2].name = e.target.value; });
+      const idx2 = idx; // capture
+
+      const numLabel = document.createElement('div');
+      numLabel.className = 'tile-num';
+      numLabel.textContent = `#${idx}`;
+
+      const item = document.createElement('div');
+      item.className = 'tile-item';
+      item.title = `Click to download #${idx}`;
+      item.appendChild(disp);
+      item.appendChild(numLabel);
+      item.appendChild(nameInput);
+      item.addEventListener('click', e => {
+        if (e.target === nameInput) return;
+        downloadOne(idx2);
+      });
+      grid.appendChild(item);
+      idx++;
+    }
+  }
+
+  document.getElementById('stats').textContent =
+    `${idx} sprites cut from ${srcImg.width}×${srcImg.height}px image · ${tw}×${th}px each · ${numCols} col${numCols!==1?'s':''} × ${numRows} row${numRows!==1?'s':''}`;
+  document.getElementById('actions').style.display = 'flex';
+
+  // Redraw source preview at new scale
+  const sc = document.getElementById('sourceCanvas');
+  sc.width  = srcImg.width  * scl;
+  sc.height = srcImg.height * scl;
+  const sctx = sc.getContext('2d');
+  sctx.imageSmoothingEnabled = false;
+  sctx.drawImage(srcImg, 0, 0, sc.width, sc.height);
+  // Draw grid lines
+  sctx.strokeStyle = 'rgba(200,160,64,0.5)';
+  sctx.lineWidth = 0.5;
+  for (let r = 0; r <= numRows; r++) {
+    sctx.beginPath();
+    sctx.moveTo(0, r*th*scl); sctx.lineTo(sc.width, r*th*scl);
+    sctx.stroke();
+  }
+  for (let c = 0; c <= numCols; c++) {
+    sctx.beginPath();
+    sctx.moveTo(c*tw*scl, 0); sctx.lineTo(c*tw*scl, sc.height);
+    sctx.stroke();
+  }
+}
+
+// ── Download helpers ───────────────────────────────────────────────
+function tileToBlob(idx) {
+  return new Promise(resolve => tiles[idx].canvas.toBlob(resolve, 'image/png'));
+}
+
+function downloadOne(idx) {
+  const a = document.createElement('a');
+  a.href     = tiles[idx].canvas.toDataURL('image/png');
+  a.download = (tiles[idx].name || `sprite_${idx}`) + '.png';
+  a.click();
+}
+
+async function downloadAll() {
+  for (let i = 0; i < tiles.length; i++) {
+    await new Promise(r => setTimeout(r, 80)); // small delay between downloads
+    downloadOne(i);
+  }
+}
+
+function autoName() {
+  const inputs = document.querySelectorAll('.name-input');
+  inputs.forEach((inp, i) => {
+    const n = `sprite_${String(i).padStart(2,'0')}`;
+    inp.value = n;
+    tiles[i].name = n;
+  });
+}
+
+// ── ZIP download (using JSZip from CDN) ────────────────────────────
+async function downloadZip() {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = '⏳ Building ZIP…';
+
+  try {
+    // Load JSZip dynamically
+    if (!window.JSZip) {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+    const zip = new JSZip();
+    for (let i = 0; i < tiles.length; i++) {
+      const blob = await tileToBlob(i);
+      const name = (tiles[i].name || `sprite_${i}`) + '.png';
+      zip.file(name, blob);
+    }
+    const content = await zip.generateAsync({ type: 'blob' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = 'sprites.zip';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  } catch(e) {
+    alert('ZIP failed: ' + e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = '📦 Download ZIP';
+}
+
+// ── Re-cut when settings change ────────────────────────────────────
+['tileW','tileH','scale'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => { if (srcImg) cutSprites(); });
+});
+</script>
+</body>
+</html>
